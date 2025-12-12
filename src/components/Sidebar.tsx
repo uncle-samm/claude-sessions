@@ -97,9 +97,6 @@ export function Sidebar() {
     return sessions.filter((s) => s.workspaceId === workspaceId);
   };
 
-  // Get first workspace for "Start conversation" button
-  const firstWorkspace = workspaces[0];
-
   return (
     <aside className="sidebar">
       {/* App Title */}
@@ -130,17 +127,6 @@ export function Sidebar() {
         <InboxView onClose={() => setShowInboxView(false)} />
       )}
 
-      {/* Start Conversation Button */}
-      {firstWorkspace && !showInboxView && (
-        <button
-          className="start-conversation-btn"
-          onClick={() => handleStartNewSession(firstWorkspace)}
-        >
-          <span className="plus-icon">+</span>
-          <span>Start conversation</span>
-        </button>
-      )}
-
       {/* Workspaces Section */}
       {!showInboxView && (
         <>
@@ -160,6 +146,7 @@ export function Sidebar() {
                     <span className="workspace-name">{workspace.name}</span>
                     <button
                       className="add-session-btn"
+                      data-testid="add-session-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStartNewSession(workspace);
@@ -178,6 +165,7 @@ export function Sidebar() {
                             ref={newSessionInputRef}
                             type="text"
                             className="session-name-input new-session-input"
+                            data-testid="new-session-input"
                             placeholder="worktree name"
                             value={newSessionName}
                             onChange={(e) => setNewSessionName(e.target.value)}
@@ -276,20 +264,6 @@ export function Sidebar() {
 
       {/* Bottom Navigation */}
       <div className="sidebar-bottom-nav">
-        <div className="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
-          </svg>
-          <span>Knowledge</span>
-        </div>
-        <div className="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-          </svg>
-          <span>Browser</span>
-        </div>
         <div className="nav-item" onClick={toggleDebugPauseAfterSetup}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />
@@ -297,12 +271,6 @@ export function Sidebar() {
           </svg>
           <span>Settings</span>
           {debugPauseAfterSetup && <span className="setting-indicator">•</span>}
-        </div>
-        <div className="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span>Provide Feedback</span>
         </div>
       </div>
 
