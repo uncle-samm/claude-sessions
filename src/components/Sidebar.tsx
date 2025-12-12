@@ -7,7 +7,7 @@ import { AddWorkspaceModal } from "./AddWorkspaceModal";
 import { InboxView } from "./InboxView";
 
 export function Sidebar() {
-  const { sessions, activeSessionId, addWorkspaceSession, removeSession, setActiveSession, renameSession } =
+  const { sessions, activeSessionId, addWorkspaceSession, removeSession, setActiveSession, renameSession, activateSession } =
     useSessionStore();
   const { workspaces, expandedWorkspaces, loadWorkspaces, toggleExpanded } = useWorkspaceStore();
   const { debugPauseAfterSetup, toggleDebugPauseAfterSetup } = useSettingsStore();
@@ -179,23 +179,29 @@ export function Sidebar() {
                         </li>
                       )}
                       {workspaceSessions.map((session) => {
+                        const isIdle = session.phase.type === "idle";
                         const isSettingUp = session.phase.type === "running_script";
                         const hasError = session.phase.type === "script_error";
-                        const isAwaiting = session.awaitingInput && !isSettingUp && !hasError;
+                        // Show spinner when busy (not awaiting input and running)
+                        const isBusy = session.phase.type === "running_claude" && !session.awaitingInput;
 
                         return (
                         <li
                           key={session.id}
-                          className={`session-item ${session.id === activeSessionId ? "active" : ""} ${isSettingUp ? "setting-up" : ""} ${hasError ? "has-error" : ""} ${isAwaiting ? "awaiting-input" : ""}`}
+                          className={`session-item ${session.id === activeSessionId ? "active" : ""} ${isSettingUp ? "setting-up" : ""} ${hasError ? "has-error" : ""} ${isIdle ? "session-idle" : ""}`}
                           onClick={() => {
+                            // Activate idle sessions before selecting
+                            if (isIdle) {
+                              activateSession(session.id);
+                            }
                             setActiveSession(session.id);
                             markSessionRead(session.id);
                           }}
                           onDoubleClick={(e) => handleDoubleClick(e, session)}
                         >
                           {isSettingUp && <span className="session-spinner"></span>}
+                          {isBusy && <span className="session-busy-spinner"></span>}
                           {hasError && <span className="session-error-icon">!</span>}
-                          {isAwaiting && <span className="session-awaiting-dot"></span>}
                           {editingId === session.id ? (
                             <input
                               ref={inputRef}
@@ -208,7 +214,7 @@ export function Sidebar() {
                               onClick={(e) => e.stopPropagation()}
                             />
                           ) : (
-                            <span className="session-name">{isSettingUp ? "Setting up..." : session.name}</span>
+                            <span className="session-name">{isSettingUp ? "Setting up..." : isIdle ? `${session.name}` : session.name}</span>
                           )}
                           {(() => {
                             const { natural, manual } = getUnreadCountForSession(session.id);

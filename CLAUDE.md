@@ -1,5 +1,18 @@
 # Claude Sessions - Agent Manager
 
+## CRITICAL: Feature Development Workflow
+
+**STOP! Before writing ANY code for a new feature:**
+1. Find next US-XXX ID in `userstories.json`
+2. Create `docs/features/US-XXX-feature-name/` folder
+3. Create `story.json` with requirements (see format below)
+4. Create `plan.md` with implementation steps
+5. THEN start coding
+
+**DO NOT skip these steps. This is mandatory for every feature.**
+
+---
+
 ## Project Structure
 
 ```

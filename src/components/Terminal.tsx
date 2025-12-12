@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { spawn, IPty } from "tauri-pty";
+import { useSessionStore } from "../store/sessions";
 import "@xterm/xterm/css/xterm.css";
 
 interface TerminalProps {
   sessionId: string;
   cwd: string;
   isActive: boolean;
-  phase: "running_claude" | string;
+  phase: "running_claude" | "idle" | string;
   isRestored?: boolean;
 }
 
 export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: TerminalProps) {
+  const updateActivity = useSessionStore((s) => s.updateActivity);
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -132,6 +134,8 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
           if (data.length === 0) return;
           if (data === '\n' || data === '\r' || data === '\r\n') return;
           terminal.write(data);
+          // Track activity for auto-idle detection
+          updateActivity(sessionId);
         });
 
         pty.onExit(({ exitCode }) => {
@@ -140,6 +144,8 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
 
         terminal.onData((data) => {
           pty.write(data);
+          // Track activity when user types
+          updateActivity(sessionId);
         });
 
         terminal.onResize(({ cols, rows }) => {
@@ -181,10 +187,13 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
     }
   };
 
-  // Don't render if not in running_claude phase
+  // Don't render if not in running_claude phase (idle sessions have no terminal)
   if (phase !== "running_claude") {
     return null;
   }
+
+  // For idle sessions, show a placeholder that will activate on click
+  // (handled in Sidebar - click activates session which changes phase)
 
   if (error) {
     return (

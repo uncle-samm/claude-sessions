@@ -3,6 +3,7 @@ import * as api from "./api";
 
 // Session phase state machine
 export type SessionPhase =
+  | { type: "idle" }  // No PTY running, waiting for activation
   | { type: "pending" }
   | { type: "running_script"; output: string[] }
   | { type: "script_error"; exitCode: number; output: string[] }
@@ -23,6 +24,7 @@ export interface Session {
   phase: SessionPhase;
   awaitingInput?: boolean;
   baseCommit?: string; // Git commit SHA to diff against (stable reference)
+  lastActivityAt?: number; // Timestamp of last terminal activity (for auto-idle)
 }
 
 interface SessionStore {
@@ -39,12 +41,18 @@ interface SessionStore {
   clearUnread: (id: string) => void;
   setAwaitingInput: (id: string, awaiting: boolean) => void;
   setBaseCommit: (id: string, baseCommit: string) => void;
+  updateActivity: (id: string) => void;
+  activateSession: (id: string) => void;
+  idleSession: (id: string) => void;
   loadFromStorage: () => Promise<void>;
   pollSessionStatus: () => void;
+  startAutoIdleTimer: () => void;
 }
 
 // Polling interval for session status (from MCP)
 let statusPollingInterval: number | null = null;
+let autoIdleInterval: number | null = null;
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
   sessions: [],
@@ -199,6 +207,40 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }));
   },
 
+  updateActivity: (id: string) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, lastActivityAt: Date.now() } : s
+      ),
+    }));
+  },
+
+  activateSession: (id: string) => {
+    const session = get().sessions.find((s) => s.id === id);
+    if (!session || session.phase.type !== "idle") return;
+
+    // Transition from idle to running_claude (Terminal will spawn PTY with --continue)
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id
+          ? { ...s, phase: { type: "running_claude" }, lastActivityAt: Date.now() }
+          : s
+      ),
+    }));
+  },
+
+  idleSession: (id: string) => {
+    const session = get().sessions.find((s) => s.id === id);
+    if (!session || session.phase.type !== "running_claude") return;
+
+    // Transition from running_claude to idle (Terminal will kill PTY)
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, phase: { type: "idle" } } : s
+      ),
+    }));
+  },
+
   loadFromStorage: async () => {
     try {
       const data = await api.getSessions();
@@ -212,7 +254,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             worktreeName: s.worktree_name || undefined,
             unreadCount: 0,
             isRestored: true,
-            phase: { type: "running_claude" } as SessionPhase,
+            // Start restored sessions as IDLE - no PTY spawned until activated
+            phase: { type: "idle" } as SessionPhase,
             awaitingInput: s.status === "ready",
             baseCommit: s.base_commit || undefined,
           })),
@@ -244,5 +287,30 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
       }
     }, 1000); // Poll every second
+  },
+
+  // Auto-idle timer: check every 30s for sessions that should go idle
+  startAutoIdleTimer: () => {
+    if (autoIdleInterval) return;
+
+    autoIdleInterval = window.setInterval(() => {
+      const sessions = get().sessions;
+      const now = Date.now();
+
+      for (const session of sessions) {
+        // Only check sessions that are running_claude
+        if (session.phase.type !== "running_claude") continue;
+
+        // Never idle if Claude is busy (not awaiting input means busy)
+        if (!session.awaitingInput) continue;
+
+        // Check if inactive for IDLE_TIMEOUT_MS
+        const lastActivity = session.lastActivityAt || 0;
+        if (now - lastActivity > IDLE_TIMEOUT_MS) {
+          console.log(`[SessionStore] Auto-idling session ${session.id} due to inactivity`);
+          get().idleSession(session.id);
+        }
+      }
+    }, 30000); // Check every 30 seconds
   },
 }));

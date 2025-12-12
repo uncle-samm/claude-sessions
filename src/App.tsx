@@ -32,18 +32,49 @@ function SessionContainer({ session, isActive }: { session: Session; isActive: b
     );
   }
 
+  // Show idle placeholder for idle sessions (only when active)
+  if (phaseType === "idle" && isActive) {
+    return (
+      <div className="idle-session-placeholder" style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        backgroundColor: "#1a1a1a",
+        color: "#888",
+      }}>
+        <div style={{ fontSize: "48px", marginBottom: "16px" }}>💤</div>
+        <p style={{ margin: "0 0 8px 0" }}>Session is idle</p>
+        <p style={{ margin: 0, fontSize: "13px", color: "#666" }}>
+          Activating... (terminal will start shortly)
+        </p>
+      </div>
+    );
+  }
+
   // Pending or ready state - show nothing
   return null;
 }
 
 function App() {
-  const { sessions, activeSessionId, loadFromStorage, pollSessionStatus } = useSessionStore();
+  const { sessions, activeSessionId, loadFromStorage, pollSessionStatus, startAutoIdleTimer, activateSession } = useSessionStore();
   const [showDiffPanel, setShowDiffPanel] = useState(false);
 
   useEffect(() => {
     loadFromStorage();
     pollSessionStatus(); // Start polling for MCP status updates
-  }, [loadFromStorage, pollSessionStatus]);
+    startAutoIdleTimer(); // Start auto-idle timer (5min inactivity → idle)
+  }, [loadFromStorage, pollSessionStatus, startAutoIdleTimer]);
+
+  // Auto-activate the active session if it's idle (after initial load)
+  const activeSessionForEffect = sessions.find(s => s.id === activeSessionId);
+  useEffect(() => {
+    if (!activeSessionId || !activeSessionForEffect) return;
+    if (activeSessionForEffect.phase.type === "idle") {
+      activateSession(activeSessionId);
+    }
+  }, [activeSessionId, activeSessionForEffect?.phase.type, activateSession]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const canShowDiff = activeSession && activeSession.phase.type === "running_claude";

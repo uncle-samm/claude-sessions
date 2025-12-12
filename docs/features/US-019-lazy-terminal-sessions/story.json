@@ -1,0 +1,88 @@
+{
+  "id": "US-019",
+  "title": "Lazy Terminal Sessions with Auto-Idle",
+  "description": "As a user, I want sessions to start in idle mode (no PTY) to prevent resource exhaustion, with auto-idle after 5 minutes of inactivity",
+  "status": "done",
+  "requirements": [
+    {"item": "Add 'idle' phase to SessionPhase type", "done": true},
+    {"item": "Restored sessions start as idle (no PTY spawned)", "done": true},
+    {"item": "New sessions auto-activate (keep running_script behavior)", "done": true},
+    {"item": "Clicking idle session activates it (starts PTY with --continue)", "done": true},
+    {"item": "Track lastActivityAt timestamp for each session", "done": true},
+    {"item": "Auto-idle after 5 minutes of inactivity", "done": true},
+    {"item": "Never auto-idle when Claude is busy", "done": true},
+    {"item": "Show spinner in sidebar when Claude is busy", "done": true},
+    {"item": "Dim idle sessions in sidebar (reduced opacity)", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "App startup loads sessions as idle",
+      "steps": [
+        "Create sessions in database",
+        "Start app fresh",
+        "Query: count PTY processes",
+        "Verify: No PTY processes running",
+        "Screenshot: Sessions appear dimmed in sidebar"
+      ],
+      "done": true
+    },
+    {
+      "name": "Click idle session activates it",
+      "steps": [
+        "Start app with existing session (idle)",
+        "Click on session in sidebar",
+        "Wait for PTY to spawn",
+        "Verify: Terminal shows Claude prompt",
+        "Screenshot: Session no longer dimmed"
+      ],
+      "done": true
+    },
+    {
+      "name": "New session auto-activates",
+      "steps": [
+        "Click + button to create new session",
+        "Verify: Setup script runs immediately",
+        "Verify: Session is active (not dimmed)",
+        "Screenshot: Terminal shows setup output"
+      ],
+      "done": true
+    },
+    {
+      "name": "Busy session shows spinner",
+      "steps": [
+        "Have active session with Claude",
+        "Trigger Claude to do work (send message)",
+        "Query DB: status should be 'busy'",
+        "Screenshot: Spinner visible in sidebar",
+        "Wait for Claude to finish",
+        "Screenshot: Spinner gone"
+      ],
+      "done": true
+    },
+    {
+      "name": "10+ sessions don't crash app",
+      "steps": [
+        "Create 10 sessions in database",
+        "Start app",
+        "Verify: App loads successfully",
+        "Verify: No crash, no PTY exhaustion",
+        "Screenshot: All 10 sessions visible (dimmed)"
+      ],
+      "done": true
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "App starts without spawning PTY for existing sessions", "done": true},
+    {"item": "Idle sessions visually distinct (dimmed)", "done": true},
+    {"item": "Busy sessions show spinner indicator", "done": true},
+    {"item": "No crash with 10+ sessions", "done": true},
+    {"item": "Activity tracking prevents premature idle", "done": true}
+  ],
+  "files": [
+    "src/store/sessions.ts",
+    "src/components/Sidebar.tsx",
+    "src/components/Terminal.tsx",
+    "src/App.tsx",
+    "src/App.css"
+  ]
+}

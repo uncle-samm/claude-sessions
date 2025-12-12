@@ -552,7 +552,7 @@
       "description": "As a user, I want diffs to compare against a fixed commit SHA stored at session start, so my diff doesn't change when origin updates",
       "priority": "high",
       "phase": 6,
-      "status": "pending",
+      "status": "done",
       "requirements": [
         "Store base_commit SHA when session is created",
         "Diff compares worktree against stored commit, not branch",
@@ -585,6 +585,47 @@
         "src/store/sessions.ts",
         "src/components/DiffViewer.tsx",
         "src/components/SetupModal.tsx"
+      ]
+    },
+    {
+      "id": "US-019",
+      "title": "Lazy Terminal Sessions with Auto-Idle",
+      "description": "As a user, I want sessions to start in idle mode (no PTY) to prevent resource exhaustion, with auto-idle after 5 minutes of inactivity",
+      "priority": "high",
+      "phase": 6,
+      "status": "done",
+      "requirements": [
+        "Add 'idle' phase to SessionPhase type",
+        "Restored sessions start as idle (no PTY spawned)",
+        "New sessions auto-activate (keep running_script behavior)",
+        "Clicking idle session activates it (starts PTY with --continue)",
+        "Track lastActivityAt timestamp for each session",
+        "Auto-idle after 5 minutes of inactivity",
+        "Never auto-idle when Claude is busy",
+        "Show spinner in sidebar when Claude is busy",
+        "Dim idle sessions in sidebar (reduced opacity)"
+      ],
+      "testSteps": [
+        "Create 10+ sessions in database",
+        "Start app - verify no crash, no PTY processes",
+        "Verify all sessions appear dimmed",
+        "Click idle session - verify PTY starts with --continue",
+        "Trigger Claude busy - verify spinner shows",
+        "Wait 5min idle - verify session goes to idle state"
+      ],
+      "acceptanceCriteria": [
+        "App starts without spawning PTY for existing sessions",
+        "Idle sessions visually distinct (dimmed)",
+        "Busy sessions show spinner indicator",
+        "No crash with 10+ sessions",
+        "Activity tracking prevents premature idle"
+      ],
+      "files": [
+        "src/store/sessions.ts",
+        "src/components/Sidebar.tsx",
+        "src/components/Terminal.tsx",
+        "src/App.tsx",
+        "src/App.css"
       ]
     }
   ]
