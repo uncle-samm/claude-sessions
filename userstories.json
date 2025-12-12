@@ -1,0 +1,550 @@
+{
+  "version": "1.0",
+  "project": "Agent Manager",
+  "designReference": "design-reference.png",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Inbox Navigation",
+      "description": "As a user, I want to click on an inbox message and be taken to that session",
+      "priority": "high",
+      "phase": 1,
+      "status": "done",
+      "requirements": [
+        "Clicking inbox message switches active session",
+        "Terminal for that session becomes visible",
+        "Message is marked as read automatically"
+      ],
+      "testSteps": [
+        "Create a session and send a message via MCP notify_ready",
+        "Click on the inbox message",
+        "Verify: Active session changes to the message's session",
+        "Verify: Terminal shows the correct session",
+        "Verify: Message is now marked as read (no unread styling)"
+      ],
+      "acceptanceCriteria": [
+        "Session switches within 100ms of click",
+        "No errors in console",
+        "Works for both existing and deleted sessions (shows error for deleted)"
+      ],
+      "files": [
+        "src/components/Inbox.tsx"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Mark Message as Unread",
+      "description": "As a user, I want to mark a read message as unread so I can revisit it later",
+      "priority": "medium",
+      "phase": 1,
+      "status": "done",
+      "requirements": [
+        "Right-click or button to mark message as unread",
+        "Message styling updates to show unread state",
+        "Unread count badge updates"
+      ],
+      "testSteps": [
+        "Have a read message in inbox",
+        "Right-click or click unread button on the message",
+        "Verify: Message shows unread styling (highlight)",
+        "Verify: Unread badge count increases",
+        "Verify: Database read_at is set to NULL"
+      ],
+      "acceptanceCriteria": [
+        "UI updates immediately (optimistic)",
+        "Persists after app restart",
+        "Works on multiple messages"
+      ],
+      "files": [
+        "src-tauri/src/db.rs",
+        "src-tauri/src/lib.rs",
+        "src/store/api.ts",
+        "src/store/inbox.ts",
+        "src/components/Inbox.tsx"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Prettier Inbox UI",
+      "description": "As a user, I want the inbox to look like the reference design with icons and proper styling",
+      "priority": "high",
+      "phase": 1,
+      "status": "done",
+      "requirements": [
+        "Inbox icon (envelope) before label",
+        "Unread badge with count",
+        "Clean separation from workspaces",
+        "Matches reference design aesthetic"
+      ],
+      "testSteps": [
+        "Open app and view sidebar",
+        "Verify: Inbox row has icon + 'Inbox' label + badge",
+        "Verify: Visual separation between inbox and workspaces",
+        "Compare to reference image for styling match",
+        "Verify: Badge shows correct unread count"
+      ],
+      "acceptanceCriteria": [
+        "Visually matches reference design",
+        "Icon is visible and properly aligned",
+        "Badge updates in real-time"
+      ],
+      "files": [
+        "src/components/Inbox.tsx",
+        "src/components/Sidebar.tsx",
+        "src/App.css"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Workspace Origin Branch Config",
+      "description": "As a user, I want to configure which branch to compare against for each workspace",
+      "priority": "high",
+      "phase": 2,
+      "status": "done",
+      "requirements": [
+        "Add origin_branch field to workspace",
+        "Default to 'main' or 'master'",
+        "Editable in workspace settings",
+        "Used for diff comparison"
+      ],
+      "testSteps": [
+        "Create new workspace",
+        "Verify: origin_branch defaults to 'main'",
+        "Edit workspace settings and change to 'develop'",
+        "Verify: Setting persists after restart",
+        "Verify: Diff viewer uses the configured branch"
+      ],
+      "acceptanceCriteria": [
+        "Field exists in database",
+        "UI allows editing",
+        "Diff comparison uses correct branch"
+      ],
+      "files": [
+        "src-tauri/src/db.rs",
+        "src-tauri/src/lib.rs",
+        "src/store/api.ts",
+        "src/store/workspaces.ts",
+        "src/components/AddWorkspaceModal.tsx"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "View Session Diff",
+      "description": "As a user, I want to see the git diff between my session's worktree and the origin branch",
+      "priority": "high",
+      "phase": 2,
+      "status": "done",
+      "requirements": [
+        "Button/tab to view diff for current session",
+        "Shows files changed with +/- counts",
+        "Unified or split diff view",
+        "Syntax highlighting"
+      ],
+      "testSteps": [
+        "Create session with some code changes",
+        "Click 'View Diff' or switch to diff view",
+        "Verify: List of changed files appears",
+        "Verify: Each file shows insertions/deletions count",
+        "Click file to expand diff",
+        "Verify: Diff shows with syntax highlighting",
+        "Verify: Line numbers are visible"
+      ],
+      "acceptanceCriteria": [
+        "Diff loads within 2 seconds",
+        "Correctly identifies all changed files",
+        "Syntax highlighting works for common languages"
+      ],
+      "files": [
+        "src-tauri/src/git.rs",
+        "src-tauri/src/lib.rs",
+        "src/store/diffs.ts",
+        "src/components/DiffViewer.tsx"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Add Comment on Diff Line",
+      "description": "As a user, I want to add comments on specific lines of the diff",
+      "priority": "high",
+      "phase": 3,
+      "status": "done",
+      "requirements": [
+        "Click line to add comment",
+        "Comment input appears inline",
+        "Comment saved to database",
+        "Comment visible on diff"
+      ],
+      "testSteps": [
+        "Open diff view for a session",
+        "Hover over a line, click comment icon",
+        "Type comment text and submit",
+        "Verify: Comment appears inline on that line",
+        "Refresh page",
+        "Verify: Comment persists"
+      ],
+      "acceptanceCriteria": [
+        "Comments saved to database",
+        "Inline display on correct line",
+        "Author (user) is recorded"
+      ],
+      "files": [
+        "src-tauri/src/db.rs",
+        "src-tauri/src/lib.rs",
+        "src/store/comments.ts",
+        "src/components/DiffViewer.tsx",
+        "src/components/CommentInput.tsx"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Reply to Comment",
+      "description": "As a user or Claude, I want to reply to existing comments creating a thread",
+      "priority": "medium",
+      "phase": 3,
+      "status": "done",
+      "requirements": [
+        "Reply button on comments",
+        "Threaded display",
+        "Both user and Claude can reply"
+      ],
+      "testSteps": [
+        "Have existing comment on diff",
+        "Click reply on the comment",
+        "Type reply and submit",
+        "Verify: Reply appears nested under parent",
+        "Have Claude reply via MCP tool",
+        "Verify: Claude's reply shows with session name as author"
+      ],
+      "acceptanceCriteria": [
+        "Replies are properly nested",
+        "Parent-child relationship in DB",
+        "Works for both user and Claude"
+      ],
+      "files": [
+        "src-tauri/src/db.rs",
+        "src/store/comments.ts",
+        "src/components/CommentThread.tsx"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Resolve Comment",
+      "description": "As a user or Claude, I want to mark comments as resolved",
+      "priority": "medium",
+      "phase": 3,
+      "status": "done",
+      "requirements": [
+        "Resolve button on comments",
+        "Resolved comments show different styling",
+        "Can filter resolved/unresolved"
+      ],
+      "testSteps": [
+        "Have open comment",
+        "Click resolve button",
+        "Verify: Comment shows resolved styling (greyed out/strikethrough)",
+        "Verify: Database status = 'resolved'",
+        "Toggle filter to hide resolved",
+        "Verify: Comment is hidden"
+      ],
+      "acceptanceCriteria": [
+        "Visual distinction for resolved",
+        "Status persists",
+        "Filter works correctly"
+      ],
+      "files": [
+        "src-tauri/src/db.rs",
+        "src/store/comments.ts",
+        "src/components/CommentThread.tsx"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Claude Gets Pending Comments via MCP",
+      "description": "As Claude, I want to retrieve all pending comments so I can address them",
+      "priority": "high",
+      "phase": 4,
+      "status": "done",
+      "requirements": [
+        "MCP tool: get_pending_comments",
+        "Returns all open comments for session's diff",
+        "Includes file, line, content, author"
+      ],
+      "testSteps": [
+        "Add comments on session's diff",
+        "In Claude session, call get_pending_comments",
+        "Verify: Returns list of open comments",
+        "Verify: Each comment has file_path, line_number, content, author",
+        "Resolve a comment",
+        "Call get_pending_comments again",
+        "Verify: Resolved comment not included"
+      ],
+      "acceptanceCriteria": [
+        "MCP tool registered and callable",
+        "Returns accurate comment data",
+        "Filters out resolved comments"
+      ],
+      "files": [
+        "scripts/mcp-bridge.cjs",
+        "src-tauri/src/server.rs"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Claude Replies to Comment via MCP",
+      "description": "As Claude, I want to reply to comments to communicate with the user",
+      "priority": "high",
+      "phase": 4,
+      "status": "done",
+      "requirements": [
+        "MCP tool: reply_to_comment",
+        "Creates reply in database",
+        "Shows in UI"
+      ],
+      "testSteps": [
+        "Have comment on diff",
+        "In Claude session, call reply_to_comment with comment_id and message",
+        "Verify: Tool returns success",
+        "Check diff view",
+        "Verify: Reply appears under original comment",
+        "Verify: Author shows session name"
+      ],
+      "acceptanceCriteria": [
+        "Reply created in database",
+        "Visible in UI immediately (after poll)",
+        "Correct author attribution"
+      ],
+      "files": [
+        "scripts/mcp-bridge.cjs",
+        "src-tauri/src/server.rs"
+      ]
+    },
+    {
+      "id": "US-011",
+      "title": "Claude Resolves Comment via MCP",
+      "description": "As Claude, I want to resolve comments after addressing them",
+      "priority": "high",
+      "phase": 4,
+      "status": "done",
+      "requirements": [
+        "MCP tool: resolve_comment",
+        "Updates comment status",
+        "Optional resolution note"
+      ],
+      "testSteps": [
+        "Have open comment",
+        "In Claude session, call resolve_comment with comment_id",
+        "Verify: Tool returns success",
+        "Check diff view",
+        "Verify: Comment shows as resolved",
+        "Call with resolution_note",
+        "Verify: Note is saved"
+      ],
+      "acceptanceCriteria": [
+        "Status updated to resolved",
+        "Resolution note saved if provided",
+        "UI reflects change"
+      ],
+      "files": [
+        "scripts/mcp-bridge.cjs",
+        "src-tauri/src/server.rs"
+      ]
+    },
+    {
+      "id": "US-012",
+      "title": "Claude Requests Review via MCP",
+      "description": "As Claude, I want to request user review when changes are ready",
+      "priority": "medium",
+      "phase": 4,
+      "status": "done",
+      "requirements": [
+        "MCP tool: request_review",
+        "Creates review request notification",
+        "User can approve or request changes"
+      ],
+      "testSteps": [
+        "In Claude session, call request_review with message",
+        "Verify: Tool returns success",
+        "Check inbox/notifications",
+        "Verify: Review request appears",
+        "Click approve",
+        "Verify: Status updates to approved"
+      ],
+      "acceptanceCriteria": [
+        "Review request created",
+        "Visible notification to user",
+        "Approve/request changes actions work"
+      ],
+      "files": [
+        "scripts/mcp-bridge.cjs",
+        "src-tauri/src/server.rs",
+        "src-tauri/src/db.rs"
+      ]
+    },
+    {
+      "id": "US-013",
+      "title": "Redesigned Sidebar Layout",
+      "description": "As a user, I want the sidebar to match the reference design with proper sections",
+      "priority": "medium",
+      "phase": 5,
+      "status": "done",
+      "requirements": [
+        "App title at top",
+        "Inbox row with icon",
+        "'+ Start conversation' button",
+        "Workspaces section",
+        "Bottom nav (Knowledge, Browser, Settings, Feedback)"
+      ],
+      "testSteps": [
+        "Open app",
+        "Verify: Title 'Agent Manager' at top",
+        "Verify: Inbox row below title",
+        "Verify: '+ Start conversation' button",
+        "Verify: Workspaces section with expandable items",
+        "Verify: Bottom navigation items present"
+      ],
+      "acceptanceCriteria": [
+        "Layout matches reference image",
+        "All sections present",
+        "Proper spacing and styling"
+      ],
+      "files": [
+        "src/components/Sidebar.tsx",
+        "src/App.css"
+      ]
+    },
+    {
+      "id": "US-014",
+      "title": "View Mode Switching",
+      "description": "As a user, I want to switch between terminal, diff, and inbox views",
+      "priority": "medium",
+      "phase": 5,
+      "status": "done",
+      "requirements": [
+        "Tabs or buttons to switch views",
+        "Terminal view (current)",
+        "Diff view",
+        "Inbox expanded view"
+      ],
+      "testSteps": [
+        "Select a session",
+        "Click terminal tab",
+        "Verify: Terminal is visible",
+        "Click diff tab",
+        "Verify: Diff view shows",
+        "Click inbox",
+        "Verify: Expanded inbox view"
+      ],
+      "acceptanceCriteria": [
+        "Smooth transitions",
+        "State preserved when switching",
+        "Clear indication of active view"
+      ],
+      "files": [
+        "src/App.tsx",
+        "src/components/ViewSelector.tsx"
+      ]
+    },
+    {
+      "id": "US-015",
+      "title": "Session-Scoped Comments",
+      "description": "As a user, I want each session to have its own isolated comments",
+      "priority": "high",
+      "phase": 3,
+      "status": "done",
+      "requirements": [
+        "Comments linked to session_id",
+        "Only visible in that session's diff view",
+        "Deleted with session"
+      ],
+      "testSteps": [
+        "Create session A, add comment",
+        "Create session B in same workspace",
+        "View diff in session B",
+        "Verify: Session A's comments NOT visible",
+        "Add comment in session B",
+        "Switch to session A",
+        "Verify: Only session A's comments visible",
+        "Delete session A",
+        "Verify: Session A's comments deleted"
+      ],
+      "acceptanceCriteria": [
+        "Complete isolation between sessions",
+        "CASCADE delete works",
+        "No cross-session visibility"
+      ],
+      "files": [
+        "src-tauri/src/db.rs"
+      ]
+    },
+    {
+      "id": "US-016",
+      "title": "Session Inbox Badge (WhatsApp-style)",
+      "description": "As a user, I want to see unread message counts per session in the sidebar, with WhatsApp-style read/unread indicators",
+      "priority": "high",
+      "phase": 1,
+      "status": "done",
+      "requirements": [
+        "Each session shows red badge with unread message count for that session",
+        "Opening/selecting a session automatically marks all its messages as read",
+        "User can manually mark messages as unread",
+        "Manually unread messages show as circle without number (WhatsApp-style)",
+        "Natural unread messages show count, manual unread shows dot"
+      ],
+      "testSteps": [
+        "Create session and send 3 messages via MCP notify_ready",
+        "Verify: Session shows red badge with '3' count",
+        "Click on session to select it",
+        "Verify: Badge disappears (all messages now read)",
+        "Open inbox and mark one message as unread",
+        "Verify: Session shows dot indicator (not '1' count)",
+        "Send new message to session",
+        "Verify: Badge shows '1' count (new unread), not dot"
+      ],
+      "acceptanceCriteria": [
+        "Badge count accurate per session",
+        "Auto-mark-read on session open",
+        "Visual distinction between new unread (count) and manual unread (dot)",
+        "Badge updates in real-time"
+      ],
+      "files": [
+        "src/components/Sidebar.tsx",
+        "src/store/sessions.ts",
+        "src/store/inbox.ts",
+        "src/App.css"
+      ]
+    },
+    {
+      "id": "US-017",
+      "title": "Side Panel Diff View",
+      "description": "As a user, I want the diff view to appear as a collapsible side panel next to the terminal, not replacing it",
+      "priority": "high",
+      "phase": 5,
+      "status": "done",
+      "requirements": [
+        "Diff panel opens on right side of terminal",
+        "Terminal remains visible when diff is open",
+        "Panel is collapsible/resizable",
+        "Can add comments while seeing terminal output"
+      ],
+      "testSteps": [
+        "Click Diff button while terminal is visible",
+        "Verify: Diff panel opens on right side",
+        "Verify: Terminal is still visible on left",
+        "Add a comment on a diff line",
+        "Verify: Comment appears inline",
+        "Collapse the diff panel",
+        "Verify: Terminal expands to full width"
+      ],
+      "acceptanceCriteria": [
+        "Side-by-side layout works",
+        "Panel can be collapsed",
+        "Comments work in side panel mode"
+      ],
+      "files": [
+        "src/App.tsx",
+        "src/App.css",
+        "src/components/DiffViewer.tsx"
+      ]
+    }
+  ]
+}

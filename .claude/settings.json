@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__applescript__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/samb/Documents/Repositories/Personal/claude-sessions/.claude/hooks/validate-applescript.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

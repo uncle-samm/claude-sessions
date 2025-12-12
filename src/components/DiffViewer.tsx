@@ -1,0 +1,341 @@
+import { useEffect, useState } from "react";
+import { useDiffStore } from "../store/diffs";
+import { useSessionStore } from "../store/sessions";
+import { useWorkspaceStore } from "../store/workspaces";
+import { useCommentStore, Comment } from "../store/comments";
+import type { DiffLine, FileDiff } from "../store/api";
+
+interface DiffViewerProps {
+  onClose: () => void;
+}
+
+export function DiffViewer({ onClose }: DiffViewerProps) {
+  const { summary, expandedFiles, fileContents, isLoading, error, currentBranch, loadDiffSummary, loadFileDiff, toggleFileExpanded, loadCurrentBranch, clearDiff } = useDiffStore();
+  const { sessions, activeSessionId } = useSessionStore();
+  const { workspaces } = useWorkspaceStore();
+  const { comments, loadComments, clearComments, getCommentsForFile } = useCommentStore();
+
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const workspace = workspaces.find((w) => w.id === activeSession?.workspaceId);
+  const worktreePath = activeSession?.cwd || activeSession?.finalCwd;
+  const baseBranch = workspace?.originBranch || "main";
+
+  useEffect(() => {
+    if (worktreePath) {
+      loadDiffSummary(worktreePath, baseBranch);
+      loadCurrentBranch(worktreePath);
+    }
+    if (activeSessionId) {
+      loadComments(activeSessionId);
+    }
+    return () => {
+      clearDiff();
+      clearComments();
+    };
+  }, [worktreePath, baseBranch, activeSessionId, loadDiffSummary, loadCurrentBranch, clearDiff, loadComments, clearComments]);
+
+  const handleToggleFile = (filePath: string) => {
+    toggleFileExpanded(filePath);
+    // Load file content if expanding and not already loaded
+    if (!expandedFiles.has(filePath) && !fileContents.has(filePath) && worktreePath) {
+      loadFileDiff(worktreePath, filePath, baseBranch);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges: Record<string, { label: string; className: string }> = {
+      added: { label: "A", className: "status-added" },
+      modified: { label: "M", className: "status-modified" },
+      deleted: { label: "D", className: "status-deleted" },
+      renamed: { label: "R", className: "status-renamed" },
+    };
+    const badge = badges[status] || { label: "?", className: "" };
+    return <span className={`diff-status-badge ${badge.className}`}>{badge.label}</span>;
+  };
+
+  const getFileCommentCount = (filePath: string) => {
+    return getCommentsForFile(filePath).filter(c => c.status === "open" && !c.parentId).length;
+  };
+
+  if (!activeSession) {
+    return (
+      <div className="diff-viewer">
+        <div className="diff-header">
+          <h3>Diff Viewer</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <div className="diff-empty">
+          <p>No session selected</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="diff-viewer">
+      <div className="diff-header">
+        <div className="diff-title">
+          <h3>Changes</h3>
+          <span className="diff-branch-info">
+            {currentBranch} → {baseBranch}
+          </span>
+        </div>
+        <button className="close-btn" onClick={onClose}>×</button>
+      </div>
+
+      {isLoading && (
+        <div className="diff-loading">
+          <span className="spinner"></span>
+          <span>Loading diff...</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="diff-error">
+          <span className="error-icon">!</span>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {summary && !isLoading && (
+        <>
+          <div className="diff-summary">
+            <span className="diff-stat">
+              <span className="diff-files">{summary.total_files} file{summary.total_files !== 1 ? 's' : ''}</span>
+              <span className="diff-insertions">+{summary.total_insertions}</span>
+              <span className="diff-deletions">-{summary.total_deletions}</span>
+              {comments.filter(c => c.status === "open" && !c.parentId).length > 0 && (
+                <span className="diff-comments-count">
+                  {comments.filter(c => c.status === "open" && !c.parentId).length} comment{comments.filter(c => c.status === "open" && !c.parentId).length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </span>
+          </div>
+
+          <div className="diff-file-list">
+            {summary.files.length === 0 ? (
+              <div className="diff-empty">
+                <p>No changes detected</p>
+              </div>
+            ) : (
+              summary.files.map((file) => {
+                const commentCount = getFileCommentCount(file.path);
+                return (
+                  <div key={file.path} className="diff-file">
+                    <div
+                      className={`diff-file-header ${expandedFiles.has(file.path) ? 'expanded' : ''}`}
+                      onClick={() => handleToggleFile(file.path)}
+                    >
+                      <span className={`chevron ${expandedFiles.has(file.path) ? 'expanded' : ''}`}>›</span>
+                      {getStatusBadge(file.status)}
+                      <span className="diff-file-path">{file.path}</span>
+                      {commentCount > 0 && (
+                        <span className="diff-file-comments">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                          {commentCount}
+                        </span>
+                      )}
+                      <span className="diff-file-stats">
+                        <span className="diff-insertions">+{file.insertions}</span>
+                        <span className="diff-deletions">-{file.deletions}</span>
+                      </span>
+                    </div>
+
+                    {expandedFiles.has(file.path) && (
+                      <div className="diff-file-content">
+                        {fileContents.has(file.path) ? (
+                          <FileHunks
+                            file={fileContents.get(file.path)!}
+                            sessionId={activeSession.id}
+                            comments={getCommentsForFile(file.path)}
+                          />
+                        ) : (
+                          <div className="diff-loading-file">Loading...</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface FileHunksProps {
+  file: FileDiff;
+  sessionId: string;
+  comments: Comment[];
+}
+
+function FileHunks({ file, sessionId, comments }: FileHunksProps) {
+  if (file.hunks.length === 0) {
+    return <div className="diff-no-hunks">No content changes</div>;
+  }
+
+  return (
+    <div className="diff-hunks">
+      {file.hunks.map((hunk, hunkIndex) => (
+        <div key={hunkIndex} className="diff-hunk">
+          <div className="diff-hunk-header">{hunk.header}</div>
+          <div className="diff-lines">
+            {hunk.lines.map((line, lineIndex) => (
+              <DiffLineRow
+                key={lineIndex}
+                line={line}
+                filePath={file.path}
+                sessionId={sessionId}
+                comments={comments}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface DiffLineRowProps {
+  line: DiffLine;
+  filePath: string;
+  sessionId: string;
+  comments: Comment[];
+}
+
+function DiffLineRow({ line, filePath, sessionId, comments }: DiffLineRowProps) {
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const { addComment, resolveComment } = useCommentStore();
+
+  const lineNumber = line.line_type === "delete" ? line.old_line : line.new_line;
+  const lineComments = comments.filter(
+    (c) => c.lineNumber === lineNumber && c.lineType === line.line_type && !c.parentId
+  );
+
+  const lineClass = `diff-line diff-line-${line.line_type}`;
+  const prefix = line.line_type === "add" ? "+" : line.line_type === "delete" ? "-" : " ";
+
+  const handleAddComment = async () => {
+    if (!commentText.trim()) return;
+    await addComment(sessionId, filePath, lineNumber, line.line_type, commentText.trim());
+    setCommentText("");
+    setShowCommentInput(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      handleAddComment();
+    } else if (e.key === "Escape") {
+      setShowCommentInput(false);
+      setCommentText("");
+    }
+  };
+
+  return (
+    <>
+      <div className={lineClass}>
+        <span className="diff-line-number old">{line.old_line ?? ""}</span>
+        <span className="diff-line-number new">{line.new_line ?? ""}</span>
+        <span className="diff-line-prefix">{prefix}</span>
+        <span className="diff-line-content">{line.content || " "}</span>
+        <button
+          className="diff-line-comment-btn"
+          onClick={() => setShowCommentInput(!showCommentInput)}
+          title="Add comment"
+        >
+          +
+        </button>
+        {lineComments.length > 0 && (
+          <span className="diff-line-comment-indicator">{lineComments.length}</span>
+        )}
+      </div>
+
+      {/* Existing comments */}
+      {lineComments.map((comment) => {
+        // Get replies for this comment
+        const replies = comments.filter((c) => c.parentId === comment.id);
+
+        return (
+          <div key={comment.id} className="diff-comment-thread">
+            <div className={`diff-comment ${comment.status === "resolved" ? "resolved" : ""}`}>
+              <div className="diff-comment-header">
+                <span className="diff-comment-author">{comment.author === "user" ? "You" : comment.author}</span>
+                <span className="diff-comment-time">{formatTime(comment.createdAt)}</span>
+                {comment.status === "open" && (
+                  <button
+                    className="diff-comment-resolve"
+                    onClick={() => resolveComment(comment.id)}
+                    title="Resolve"
+                  >
+                    ✓
+                  </button>
+                )}
+              </div>
+              <div className="diff-comment-content">{comment.content}</div>
+            </div>
+            {/* Replies */}
+            {replies.map((reply) => (
+              <div key={reply.id} className={`diff-comment diff-comment-reply ${reply.status === "resolved" ? "resolved" : ""}`}>
+                <div className="diff-comment-header">
+                  <span className="diff-comment-author">{reply.author === "user" ? "You" : reply.author}</span>
+                  <span className="diff-comment-time">{formatTime(reply.createdAt)}</span>
+                </div>
+                <div className="diff-comment-content">{reply.content}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+
+      {/* Comment input */}
+      {showCommentInput && (
+        <div className="diff-comment-input-wrapper">
+          <textarea
+            className="diff-comment-input"
+            placeholder="Write a comment... (Cmd+Enter to submit)"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            autoFocus
+          />
+          <div className="diff-comment-input-actions">
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setShowCommentInput(false);
+                setCommentText("");
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={handleAddComment}
+              disabled={!commentText.trim()}
+            >
+              Comment
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function formatTime(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
