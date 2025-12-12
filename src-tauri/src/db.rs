@@ -598,17 +598,6 @@ pub fn resolve_comment(id: &str) -> Result<()> {
     })
 }
 
-pub fn update_comment(id: &str, content: &str) -> Result<()> {
-    let now = Utc::now().to_rfc3339();
-    with_db(|conn| {
-        conn.execute(
-            "UPDATE diff_comments SET content = ?1, updated_at = ?2 WHERE id = ?3",
-            params![content, now, id],
-        )?;
-        Ok(())
-    })
-}
-
 pub fn delete_comment(id: &str) -> Result<()> {
     with_db(|conn| {
         conn.execute("DELETE FROM diff_comments WHERE id = ?1", params![id])?;

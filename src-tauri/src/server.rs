@@ -72,9 +72,7 @@ struct ReplyPayload {
 }
 
 #[derive(Debug, Deserialize)]
-struct ResolvePayload {
-    resolution_note: Option<String>,
-}
+struct ResolvePayload {}
 
 // GET /api/session/:id - Get session info
 async fn get_session(Path(id): Path<String>) -> (StatusCode, Json<ApiResponse<SessionInfo>>) {

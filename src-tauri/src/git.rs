@@ -275,21 +275,6 @@ pub fn get_current_branch(worktree_path: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-/// Check if a branch exists in the repository
-pub fn branch_exists(worktree_path: &str, branch: &str) -> bool {
-    let path = Path::new(worktree_path);
-
-    let output = Command::new("git")
-        .current_dir(path)
-        .args(["rev-parse", "--verify", branch])
-        .output();
-
-    match output {
-        Ok(result) => result.status.success(),
-        Err(_) => false,
-    }
-}
-
 /// Get the commit SHA for a given ref (branch name, HEAD, origin/branch, etc.)
 pub fn get_commit_sha(worktree_path: &str, ref_name: &str) -> Result<String, String> {
     let path = Path::new(worktree_path);
