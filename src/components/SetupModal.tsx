@@ -134,7 +134,7 @@ export function SetupModal({ session, isActive }: SetupModalProps) {
                       const workspaces = await getWorkspaces();
                       const workspace = workspaces.find(w => w.id === session.workspaceId);
                       if (workspace) {
-                        // Use HEAD to capture the worktree's current commit, not origin
+                        // Use HEAD to get the worktree's current commit, not origin
                         // This ensures diff only shows changes made in this session
                         const commitSha = await getCommitSha(finalCwd, "HEAD");
                         await updateSessionBaseCommit(session.id, commitSha);
