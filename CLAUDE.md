@@ -32,21 +32,51 @@ claude-sessions/
 - Commit after each logical step
 - Mark requirements as `done: true` when completed
 
-### 3. Testing (MANDATORY - No Shortcuts)
-Every feature MUST be tested via Tauri MCP tools:
+### 3. Testing (MANDATORY - NO LAZINESS ALLOWED)
 
+**CRITICAL: You MUST actually execute tests, not just claim they work.**
+
+Bad: "The button is visible so it's functional" - THIS IS LAZY
+Good: Click the button, verify the action happened, check the database changed
+
+**For EVERY feature, you must:**
+1. **Actually click buttons** - Don't just verify they exist
+2. **Verify side effects** - Check DB changed, API was called, state updated
+3. **Test error cases** - What happens when things fail?
+4. **Before/after verification** - Query state before, perform action, query after
+
+**Test Tools:**
 ```javascript
-// Use these to interact with Claude in terminal
+// Interact with Claude in terminal
 window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].writeLine('message')
 window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].write('\r') // Submit
 window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].getBuffer() // Read output
 ```
 
-**Test checklist:**
-1. Database: `sqlite3 "~/Library/Application Support/com.samb.claude-sessions/sessions.db"`
-2. UI: Take screenshot with `mcp__tauri__tauri_webview_screenshot`
-3. MCP: Test actual tool calls, not just HTTP endpoints
-4. Claude interaction: Send commands to Claude via terminal API
+**Test checklist (ALL required):**
+1. Database BEFORE action: `sqlite3 "~/Library/...sessions.db" "SELECT ..."`
+2. Perform the action via Tauri MCP tools (click, type, etc.)
+3. Database AFTER action: Verify the change happened
+4. UI verification: Screenshot showing the result
+5. If async: Wait and re-check until complete
+
+**Example - Testing a "Sync" button:**
+```
+1. Query DB: SELECT base_commit FROM sessions (note the value)
+2. Click the Sync button via tauri_webview_interact
+3. Wait for operation to complete
+4. Query DB again: SELECT base_commit FROM sessions
+5. VERIFY: The value changed to a new SHA
+6. Screenshot: Show the UI updated
+```
+
+**DO NOT mark tests as "done" unless you actually ran them and verified the results.**
+
+**Tip: Add `data-testid` attributes to components for easier test targeting:**
+```tsx
+<button data-testid="sync-btn" className="sync-btn">Sync</button>
+```
+Then select with: `[data-testid="sync-btn"]`
 
 ### 4. After Completion
 1. Mark all story items as `done: true`

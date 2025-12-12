@@ -38,6 +38,7 @@ interface SessionStore {
   incrementUnread: (id: string) => void;
   clearUnread: (id: string) => void;
   setAwaitingInput: (id: string, awaiting: boolean) => void;
+  setBaseCommit: (id: string, baseCommit: string) => void;
   loadFromStorage: () => Promise<void>;
   pollSessionStatus: () => void;
 }
@@ -186,6 +187,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set((state) => ({
       sessions: state.sessions.map((s) =>
         s.id === id ? { ...s, awaitingInput: awaiting } : s
+      ),
+    }));
+  },
+
+  setBaseCommit: (id: string, baseCommit: string) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, baseCommit } : s
       ),
     }));
   },

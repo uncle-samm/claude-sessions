@@ -12,7 +12,7 @@ interface DiffViewerProps {
 
 export function DiffViewer({ onClose }: DiffViewerProps) {
   const { summary, expandedFiles, fileContents, isLoading, error, currentBranch, loadDiffSummary, loadFileDiff, toggleFileExpanded, loadCurrentBranch, clearDiff } = useDiffStore();
-  const { sessions, activeSessionId } = useSessionStore();
+  const { sessions, activeSessionId, setBaseCommit } = useSessionStore();
   const { workspaces } = useWorkspaceStore();
   const { comments, loadComments, clearComments, getCommentsForFile } = useCommentStore();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -58,14 +58,13 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
       // Get the new commit SHA
       const newCommitSha = await getCommitSha(worktreePath, `origin/${originBranch}`);
 
-      // Update the session's base_commit
+      // Update the session's base_commit in database
       await updateSessionBaseCommit(activeSession.id, newCommitSha);
 
-      // Update local state by reloading sessions (the store will pick up the new base_commit)
-      // For now, just reload the diff with the new commit
-      loadDiffSummary(worktreePath, newCommitSha);
+      // Update local session store so UI reflects the change
+      setBaseCommit(activeSession.id, newCommitSha);
 
-      // Clear expanded files to force reload with new base
+      // Clear and reload diff with new base
       clearDiff();
       loadDiffSummary(worktreePath, newCommitSha);
       loadCurrentBranch(worktreePath);
