@@ -14,7 +14,7 @@ interface SetupModalProps {
 }
 
 export function SetupModal({ session, isActive }: SetupModalProps) {
-  const { setPhase, removeSession } = useSessionStore();
+  const { setPhase, removeSession, setBaseCommit } = useSessionStore();
   const debugPauseAfterSetup = useSettingsStore((s) => s.debugPauseAfterSetup);
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
@@ -134,9 +134,11 @@ export function SetupModal({ session, isActive }: SetupModalProps) {
                       const workspaces = await getWorkspaces();
                       const workspace = workspaces.find(w => w.id === session.workspaceId);
                       if (workspace) {
-                        const originRef = `origin/${workspace.origin_branch}`;
-                        const commitSha = await getCommitSha(finalCwd, originRef);
+                        // Use HEAD to capture the worktree's current commit, not origin
+                        // This ensures diff only shows changes made in this session
+                        const commitSha = await getCommitSha(finalCwd, "HEAD");
                         await updateSessionBaseCommit(session.id, commitSha);
+                        setBaseCommit(session.id, commitSha);  // Update store too
                         terminal.write(`\x1b[90mBase commit: ${commitSha.slice(0, 8)}\x1b[0m\r\n`);
                       }
                     } catch (err) {
