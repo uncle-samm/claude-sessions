@@ -26,6 +26,7 @@ pub struct Session {
     pub workspace_id: Option<String>,
     pub worktree_name: Option<String>,
     pub status: String, // "ready" or "busy"
+    pub base_commit: Option<String>, // Git commit SHA to diff against (stable reference)
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -100,12 +101,19 @@ pub fn init_db() -> Result<()> {
             workspace_id TEXT,
             worktree_name TEXT,
             status TEXT NOT NULL DEFAULT 'busy',
+            base_commit TEXT,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
         )",
         [],
     )?;
+
+    // Migration: Add base_commit column if it doesn't exist
+    let _ = conn.execute(
+        "ALTER TABLE sessions ADD COLUMN base_commit TEXT",
+        [],
+    );
 
     // Create inbox_messages table
     conn.execute(
@@ -205,8 +213,8 @@ pub fn delete_workspace(id: &str) -> Result<()> {
 pub fn create_session(session: &Session) -> Result<()> {
     with_db(|conn| {
         conn.execute(
-            "INSERT INTO sessions (id, name, cwd, workspace_id, worktree_name, status, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO sessions (id, name, cwd, workspace_id, worktree_name, status, base_commit, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 session.id,
                 session.name,
@@ -214,6 +222,7 @@ pub fn create_session(session: &Session) -> Result<()> {
                 session.workspace_id,
                 session.worktree_name,
                 session.status,
+                session.base_commit,
                 session.created_at.to_rfc3339(),
                 session.updated_at.to_rfc3339()
             ],
@@ -225,12 +234,12 @@ pub fn create_session(session: &Session) -> Result<()> {
 pub fn get_all_sessions() -> Result<Vec<Session>> {
     with_db(|conn| {
         let mut stmt = conn.prepare(
-            "SELECT id, name, cwd, workspace_id, worktree_name, status, created_at, updated_at
+            "SELECT id, name, cwd, workspace_id, worktree_name, status, base_commit, created_at, updated_at
              FROM sessions ORDER BY created_at"
         )?;
         let sessions = stmt.query_map([], |row| {
-            let created_at_str: String = row.get(6)?;
-            let updated_at_str: String = row.get(7)?;
+            let created_at_str: String = row.get(7)?;
+            let updated_at_str: String = row.get(8)?;
             Ok(Session {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -238,6 +247,7 @@ pub fn get_all_sessions() -> Result<Vec<Session>> {
                 workspace_id: row.get(3)?,
                 worktree_name: row.get(4)?,
                 status: row.get(5)?,
+                base_commit: row.get(6)?,
                 created_at: DateTime::parse_from_rfc3339(&created_at_str)
                     .map(|dt| dt.with_timezone(&Utc))
                     .unwrap_or_else(|_| Utc::now()),
@@ -253,14 +263,14 @@ pub fn get_all_sessions() -> Result<Vec<Session>> {
 pub fn get_session(id: &str) -> Result<Option<Session>> {
     with_db(|conn| {
         let mut stmt = conn.prepare(
-            "SELECT id, name, cwd, workspace_id, worktree_name, status, created_at, updated_at
+            "SELECT id, name, cwd, workspace_id, worktree_name, status, base_commit, created_at, updated_at
              FROM sessions WHERE id = ?1"
         )?;
         let mut rows = stmt.query(params![id])?;
 
         if let Some(row) = rows.next()? {
-            let created_at_str: String = row.get(6)?;
-            let updated_at_str: String = row.get(7)?;
+            let created_at_str: String = row.get(7)?;
+            let updated_at_str: String = row.get(8)?;
             Ok(Some(Session {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -268,6 +278,7 @@ pub fn get_session(id: &str) -> Result<Option<Session>> {
                 workspace_id: row.get(3)?,
                 worktree_name: row.get(4)?,
                 status: row.get(5)?,
+                base_commit: row.get(6)?,
                 created_at: DateTime::parse_from_rfc3339(&created_at_str)
                     .map(|dt| dt.with_timezone(&Utc))
                     .unwrap_or_else(|_| Utc::now()),
@@ -286,6 +297,16 @@ pub fn update_session_status(id: &str, status: &str) -> Result<()> {
         conn.execute(
             "UPDATE sessions SET status = ?1, updated_at = ?2 WHERE id = ?3",
             params![status, Utc::now().to_rfc3339(), id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn update_session_base_commit(id: &str, base_commit: &str) -> Result<()> {
+    with_db(|conn| {
+        conn.execute(
+            "UPDATE sessions SET base_commit = ?1, updated_at = ?2 WHERE id = ?3",
+            params![base_commit, Utc::now().to_rfc3339(), id],
         )?;
         Ok(())
     })

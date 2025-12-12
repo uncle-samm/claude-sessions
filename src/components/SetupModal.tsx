@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { spawn, IPty } from "tauri-pty";
 import { Session, useSessionStore } from "../store/sessions";
 import { useSettingsStore } from "../store/settings";
-import { configureWorktree, updateSessionCwd } from "../store/api";
+import { configureWorktree, updateSessionCwd, getWorkspaces, getCommitSha, updateSessionBaseCommit } from "../store/api";
 
 const CWD_MARKER = "___CLAUDE_SESSIONS_CWD_MARKER___";
 
@@ -127,7 +127,24 @@ export function SetupModal({ session, isActive }: SetupModalProps) {
                 updateSessionCwd(session.id, finalCwd),
                 configureWorktree(finalCwd, session.id)
               ])
-                .then(() => {
+                .then(async () => {
+                  // Capture the base commit SHA for stable diffs
+                  if (session.workspaceId) {
+                    try {
+                      const workspaces = await getWorkspaces();
+                      const workspace = workspaces.find(w => w.id === session.workspaceId);
+                      if (workspace) {
+                        const originRef = `origin/${workspace.origin_branch}`;
+                        const commitSha = await getCommitSha(finalCwd, originRef);
+                        await updateSessionBaseCommit(session.id, commitSha);
+                        terminal.write(`\x1b[90mBase commit: ${commitSha.slice(0, 8)}\x1b[0m\r\n`);
+                      }
+                    } catch (err) {
+                      // Non-fatal: just log and continue without base commit
+                      terminal.write(`\x1b[33mNote: Could not capture base commit: ${err}\x1b[0m\r\n`);
+                    }
+                  }
+
                   if (debugPauseAfterSetup) {
                     terminal.write("\x1b[1mPress Enter to start Claude...\x1b[0m");
                     setIsReady(true);

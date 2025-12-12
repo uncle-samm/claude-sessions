@@ -289,3 +289,39 @@ pub fn branch_exists(worktree_path: &str, branch: &str) -> bool {
         Err(_) => false,
     }
 }
+
+/// Get the commit SHA for a given ref (branch name, HEAD, origin/branch, etc.)
+pub fn get_commit_sha(worktree_path: &str, ref_name: &str) -> Result<String, String> {
+    let path = Path::new(worktree_path);
+
+    let output = Command::new("git")
+        .current_dir(path)
+        .args(["rev-parse", ref_name])
+        .output()
+        .map_err(|e| format!("Failed to run git rev-parse: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git rev-parse failed: {}", stderr));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Fetch from remote origin
+pub fn fetch_origin(worktree_path: &str) -> Result<(), String> {
+    let path = Path::new(worktree_path);
+
+    let output = Command::new("git")
+        .current_dir(path)
+        .args(["fetch", "origin"])
+        .output()
+        .map_err(|e| format!("Failed to run git fetch: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git fetch failed: {}", stderr));
+    }
+
+    Ok(())
+}

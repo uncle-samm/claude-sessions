@@ -4,6 +4,7 @@ import { useSessionStore } from "../store/sessions";
 import { useWorkspaceStore } from "../store/workspaces";
 import { useCommentStore, Comment } from "../store/comments";
 import type { DiffLine, FileDiff } from "../store/api";
+import { fetchOrigin, getCommitSha, updateSessionBaseCommit } from "../store/api";
 
 interface DiffViewerProps {
   onClose: () => void;
@@ -14,15 +15,19 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const { sessions, activeSessionId } = useSessionStore();
   const { workspaces } = useWorkspaceStore();
   const { comments, loadComments, clearComments, getCommentsForFile } = useCommentStore();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const workspace = workspaces.find((w) => w.id === activeSession?.workspaceId);
   const worktreePath = activeSession?.cwd || activeSession?.finalCwd;
-  const baseBranch = workspace?.originBranch || "main";
+  const originBranch = workspace?.originBranch || "main";
+
+  // Use stored base_commit SHA if available, otherwise fall back to origin/branch
+  const baseRef = activeSession?.baseCommit || `origin/${originBranch}`;
 
   useEffect(() => {
     if (worktreePath) {
-      loadDiffSummary(worktreePath, baseBranch);
+      loadDiffSummary(worktreePath, baseRef);
       loadCurrentBranch(worktreePath);
     }
     if (activeSessionId) {
@@ -32,13 +37,42 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
       clearDiff();
       clearComments();
     };
-  }, [worktreePath, baseBranch, activeSessionId, loadDiffSummary, loadCurrentBranch, clearDiff, loadComments, clearComments]);
+  }, [worktreePath, baseRef, activeSessionId, loadDiffSummary, loadCurrentBranch, clearDiff, loadComments, clearComments]);
 
   const handleToggleFile = (filePath: string) => {
     toggleFileExpanded(filePath);
     // Load file content if expanding and not already loaded
     if (!expandedFiles.has(filePath) && !fileContents.has(filePath) && worktreePath) {
-      loadFileDiff(worktreePath, filePath, baseBranch);
+      loadFileDiff(worktreePath, filePath, baseRef);
+    }
+  };
+
+  const handleSyncWithOrigin = async () => {
+    if (!worktreePath || !activeSession || isSyncing) return;
+
+    setIsSyncing(true);
+    try {
+      // Fetch latest from origin
+      await fetchOrigin(worktreePath);
+
+      // Get the new commit SHA
+      const newCommitSha = await getCommitSha(worktreePath, `origin/${originBranch}`);
+
+      // Update the session's base_commit
+      await updateSessionBaseCommit(activeSession.id, newCommitSha);
+
+      // Update local state by reloading sessions (the store will pick up the new base_commit)
+      // For now, just reload the diff with the new commit
+      loadDiffSummary(worktreePath, newCommitSha);
+
+      // Clear expanded files to force reload with new base
+      clearDiff();
+      loadDiffSummary(worktreePath, newCommitSha);
+      loadCurrentBranch(worktreePath);
+    } catch (err) {
+      console.error("[DiffViewer] Failed to sync with origin:", err);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -71,16 +105,33 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
     );
   }
 
+  // Format the base reference for display (show short SHA if it's a commit)
+  const baseRefDisplay = activeSession?.baseCommit
+    ? activeSession.baseCommit.slice(0, 8)
+    : `origin/${originBranch}`;
+
   return (
     <div className="diff-viewer">
       <div className="diff-header">
         <div className="diff-title">
           <h3>Changes</h3>
           <span className="diff-branch-info">
-            {currentBranch} → {baseBranch}
+            {currentBranch} → {baseRefDisplay}
           </span>
         </div>
-        <button className="close-btn" onClick={onClose}>×</button>
+        <div className="diff-header-actions">
+          {workspace && (
+            <button
+              className="sync-btn"
+              onClick={handleSyncWithOrigin}
+              disabled={isSyncing}
+              title="Sync with origin to update the base commit"
+            >
+              {isSyncing ? "Syncing..." : "Sync with Origin"}
+            </button>
+          )}
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
       </div>
 
       {isLoading && (

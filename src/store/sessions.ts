@@ -22,13 +22,14 @@ export interface Session {
   worktreeName?: string;
   phase: SessionPhase;
   awaitingInput?: boolean;
+  baseCommit?: string; // Git commit SHA to diff against (stable reference)
 }
 
 interface SessionStore {
   sessions: Session[];
   activeSessionId: string | null;
   addSession: (name: string, cwd: string) => Promise<string>;
-  addWorkspaceSession: (workspaceId: string, cwd: string, scriptPath: string, worktreeName: string) => Promise<string>;
+  addWorkspaceSession: (workspaceId: string, cwd: string, scriptPath: string, worktreeName: string, baseCommit?: string) => Promise<string>;
   removeSession: (id: string) => void;
   setActiveSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
@@ -66,10 +67,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     return data.id;
   },
 
-  addWorkspaceSession: async (workspaceId: string, cwd: string, scriptPath: string, worktreeName: string) => {
-    console.log("[SessionStore] addWorkspaceSession called:", { workspaceId, cwd, scriptPath, worktreeName });
+  addWorkspaceSession: async (workspaceId: string, cwd: string, scriptPath: string, worktreeName: string, baseCommit?: string) => {
+    console.log("[SessionStore] addWorkspaceSession called:", { workspaceId, cwd, scriptPath, worktreeName, baseCommit });
     // Create in database first to get the ID
-    const data = await api.createSession(worktreeName, cwd, workspaceId, worktreeName);
+    const data = await api.createSession(worktreeName, cwd, workspaceId, worktreeName, baseCommit || null);
     const session: Session = {
       id: data.id,
       name: worktreeName,
@@ -81,6 +82,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       worktreeName,
       phase: { type: "running_script", output: [] },
       awaitingInput: false,
+      baseCommit,
     };
     set((state) => ({
       sessions: [...state.sessions, session],
@@ -203,6 +205,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             isRestored: true,
             phase: { type: "running_claude" } as SessionPhase,
             awaitingInput: s.status === "ready",
+            baseCommit: s.base_commit || undefined,
           })),
           activeSessionId: data[0].id,
         });

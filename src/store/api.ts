@@ -20,6 +20,7 @@ export interface SessionData {
   workspace_id: string | null;
   worktree_name: string | null;
   status: string; // "ready" or "busy"
+  base_commit: string | null; // Git commit SHA to diff against (stable reference)
 }
 
 // Workspace API
@@ -54,13 +55,15 @@ export async function createSession(
   name: string,
   cwd: string,
   workspaceId: string | null,
-  worktreeName: string | null
+  worktreeName: string | null,
+  baseCommit: string | null = null
 ): Promise<SessionData> {
   return invoke<SessionData>("create_session", {
     name,
     cwd,
     workspaceId,
     worktreeName,
+    baseCommit,
   });
 }
 
@@ -167,6 +170,18 @@ export async function getFileDiff(worktreePath: string, filePath: string, baseBr
 
 export async function getCurrentBranch(worktreePath: string): Promise<string> {
   return invoke<string>("get_current_branch", { worktreePath });
+}
+
+export async function getCommitSha(worktreePath: string, refName: string): Promise<string> {
+  return invoke<string>("get_commit_sha", { worktreePath, refName });
+}
+
+export async function updateSessionBaseCommit(id: string, baseCommit: string): Promise<void> {
+  return invoke<void>("update_session_base_commit", { id, baseCommit });
+}
+
+export async function fetchOrigin(worktreePath: string): Promise<void> {
+  return invoke<void>("fetch_origin", { worktreePath });
 }
 
 // Comment API

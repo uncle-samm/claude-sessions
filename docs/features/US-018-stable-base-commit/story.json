@@ -1,0 +1,72 @@
+{
+  "id": "US-018",
+  "title": "Stable Base Commit Diff",
+  "description": "As a user, I want diffs to compare against a fixed commit SHA stored at session start, so my diff doesn't change when origin updates",
+  "priority": "high",
+  "status": "complete",
+  "notes": [
+    "This prevents confusion when collaborators push to origin while you're working",
+    "User controls when to sync with latest origin via explicit button"
+  ],
+  "requirements": [
+    {"item": "Store base_commit SHA when session is created", "done": true},
+    {"item": "Diff compares worktree against stored commit, not branch", "done": true},
+    {"item": "Diff remains stable even if origin branch updates", "done": true},
+    {"item": "Sync button to update base_commit to latest origin", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "Base commit stored on session create",
+      "steps": [
+        "Create new workspace session via UI",
+        "Query DB: SELECT base_commit FROM sessions WHERE id = '<session_id>'",
+        "Verify: base_commit is a valid 40-char SHA"
+      ],
+      "done": true
+    },
+    {
+      "name": "Diff uses stored SHA",
+      "steps": [
+        "Open diff panel for session",
+        "Check header shows short SHA (e.g. fad32f05) instead of branch name",
+        "Verify: git diff <base_commit> is called, not git diff <branch>"
+      ],
+      "done": true
+    },
+    {
+      "name": "Diff stable when origin updates",
+      "steps": [
+        "Note current diff state (file count, line changes)",
+        "From another terminal: make commit and push to origin",
+        "Close and reopen diff panel",
+        "Verify: Diff unchanged (same file count, same lines)"
+      ],
+      "done": true
+    },
+    {
+      "name": "Sync button updates base_commit",
+      "steps": [
+        "Click 'Sync with origin' button in diff panel",
+        "Query DB: SELECT base_commit FROM sessions",
+        "Verify: base_commit changed to new SHA",
+        "Verify: Diff now shows changes relative to new commit"
+      ],
+      "done": true
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "base_commit persists after app restart", "done": true},
+    {"item": "Diff stable during session", "done": true},
+    {"item": "Sync button fetches and updates correctly", "done": true},
+    {"item": "Works offline (uses local ref if remote unavailable)", "done": true}
+  ],
+  "files": [
+    "src-tauri/src/db.rs",
+    "src-tauri/src/git.rs",
+    "src-tauri/src/lib.rs",
+    "src/store/api.ts",
+    "src/store/sessions.ts",
+    "src/components/DiffViewer.tsx",
+    "src/components/SetupModal.tsx"
+  ]
+}

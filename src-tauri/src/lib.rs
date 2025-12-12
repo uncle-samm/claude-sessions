@@ -24,6 +24,7 @@ pub struct SessionData {
     pub workspace_id: Option<String>,
     pub worktree_name: Option<String>,
     pub status: String,
+    pub base_commit: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -127,6 +128,7 @@ fn get_sessions() -> Result<Vec<SessionData>, String> {
                     workspace_id: s.workspace_id,
                     worktree_name: s.worktree_name,
                     status: s.status,
+                    base_commit: s.base_commit,
                 })
                 .collect()
         })
@@ -139,6 +141,7 @@ fn create_session(
     cwd: String,
     workspace_id: Option<String>,
     worktree_name: Option<String>,
+    base_commit: Option<String>,
 ) -> Result<SessionData, String> {
     let session = db::Session {
         id: uuid::Uuid::new_v4().to_string(),
@@ -147,6 +150,7 @@ fn create_session(
         workspace_id: workspace_id.clone(),
         worktree_name: worktree_name.clone(),
         status: "busy".to_string(),
+        base_commit: base_commit.clone(),
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
@@ -158,6 +162,7 @@ fn create_session(
         workspace_id,
         worktree_name,
         status: session.status,
+        base_commit,
     })
 }
 
@@ -350,6 +355,21 @@ fn get_current_branch(worktree_path: String) -> Result<String, String> {
     git::get_current_branch(&worktree_path)
 }
 
+#[tauri::command]
+fn get_commit_sha(worktree_path: String, ref_name: String) -> Result<String, String> {
+    git::get_commit_sha(&worktree_path, &ref_name)
+}
+
+#[tauri::command]
+fn update_session_base_commit(id: String, base_commit: String) -> Result<(), String> {
+    db::update_session_base_commit(&id, &base_commit).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fetch_origin(worktree_path: String) -> Result<(), String> {
+    git::fetch_origin(&worktree_path)
+}
+
 // Comment commands
 #[tauri::command]
 fn create_comment(
@@ -438,6 +458,9 @@ pub fn run() {
             get_diff_summary,
             get_file_diff,
             get_current_branch,
+            get_commit_sha,
+            update_session_base_commit,
+            fetch_origin,
             create_comment,
             get_comments_for_session,
             get_open_comments_for_session,

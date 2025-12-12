@@ -545,6 +545,47 @@
         "src/App.css",
         "src/components/DiffViewer.tsx"
       ]
+    },
+    {
+      "id": "US-018",
+      "title": "Stable Base Commit Diff",
+      "description": "As a user, I want diffs to compare against a fixed commit SHA stored at session start, so my diff doesn't change when origin updates",
+      "priority": "high",
+      "phase": 6,
+      "status": "pending",
+      "requirements": [
+        "Store base_commit SHA when session is created",
+        "Diff compares worktree against stored commit, not branch",
+        "Diff remains stable even if origin branch updates",
+        "Sync button to update base_commit to latest origin"
+      ],
+      "testSteps": [
+        "Create new session in workspace",
+        "Verify: base_commit stored in database (query sessions table)",
+        "Open diff panel",
+        "Verify: Diff uses stored SHA (check git command)",
+        "Push new commit to origin from another location",
+        "Refresh diff panel",
+        "Verify: Diff unchanged (still comparing to original commit)",
+        "Click 'Sync with origin' button",
+        "Verify: base_commit updated in database",
+        "Verify: Diff now shows changes relative to new commit"
+      ],
+      "acceptanceCriteria": [
+        "base_commit persists after app restart",
+        "Diff stable during session",
+        "Sync button fetches and updates correctly",
+        "Works offline (uses local ref if remote unavailable)"
+      ],
+      "files": [
+        "src-tauri/src/db.rs",
+        "src-tauri/src/git.rs",
+        "src-tauri/src/lib.rs",
+        "src/store/api.ts",
+        "src/store/sessions.ts",
+        "src/components/DiffViewer.tsx",
+        "src/components/SetupModal.tsx"
+      ]
     }
   ]
 }

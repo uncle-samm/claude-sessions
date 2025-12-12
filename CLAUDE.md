@@ -1,43 +1,91 @@
 # Claude Sessions - Agent Manager
 
-## Quick Reference
-- **Plan:** `.claude/plans/peppy-foraging-lobster.md`
-- **User Stories:** `userstories.json` (requirements + test steps)
-- **Design Reference:** `design-reference.png`
-- **Notes:** `notes/` - coding diary with fixes, learnings, progress
+## Project Structure
 
-## Development Standards
+```
+claude-sessions/
+├── docs/
+│   └── features/           # One folder per feature
+│       └── US-XXX-name/
+│           ├── story.json  # User story with checkable requirements
+│           └── plan.md     # Implementation plan
+├── notes/                   # Coding diary
+│   └── YYYY-MM-DD-topic.md # Daily notes with commit hashes
+├── userstories.json        # All user stories (legacy, still used)
+├── design-reference.png    # UI reference image
+└── .claude/plans/          # Active plan file
+```
 
-### Planning
-- Every feature needs a user story in `userstories.json` with:
-  - Clear requirements
-  - E2E test steps (MCP interaction + UI verification)
-  - Acceptance criteria
-- Update plan file when scope changes
+## Feature Development Workflow
 
-### Testing (No Shortcuts)
-1. **Database verification:** Query SQLite directly to verify data
-2. **MCP E2E tests:** Use actual MCP tools via the bridge (not just HTTP)
-3. **UI verification:** Screenshot + visual check against design
-4. **Real Claude interaction:** Test MCP tools with Claude in terminal using `window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].writeLine()`
+### 1. Before Starting Any Feature
+1. Create folder: `docs/features/US-XXX-feature-name/`
+2. Create `story.json` with:
+   - Requirements as checkable items: `{"item": "...", "done": false}`
+   - E2E tests with clear steps
+   - Acceptance criteria
+3. Create `plan.md` with implementation steps
+4. Search `notes/` for related fixes to avoid regressions
 
-### Documentation
-- Create note in `notes/YYYY-MM-DD-topic.md` for each session
-- Include: what was built, fixes made, learnings
-- **Before implementing:** Search `notes/` with Grep for related issues/fixes to avoid regressions
+### 2. During Implementation
+- Update todo list frequently
+- Commit after each logical step
+- Mark requirements as `done: true` when completed
 
-### Git Discipline
-- Commit frequently with clear messages
-- Push regularly to preserve history
-- Use `git log` to reference previous states if things break
+### 3. Testing (MANDATORY - No Shortcuts)
+Every feature MUST be tested via Tauri MCP tools:
+
+```javascript
+// Use these to interact with Claude in terminal
+window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].writeLine('message')
+window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].write('\r') // Submit
+window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].getBuffer() // Read output
+```
+
+**Test checklist:**
+1. Database: `sqlite3 "~/Library/Application Support/com.samb.claude-sessions/sessions.db"`
+2. UI: Take screenshot with `mcp__tauri__tauri_webview_screenshot`
+3. MCP: Test actual tool calls, not just HTTP endpoints
+4. Claude interaction: Send commands to Claude via terminal API
+
+### 4. After Completion
+1. Mark all story items as `done: true`
+2. Create note in `notes/YYYY-MM-DD-topic.md` with:
+   - What was built
+   - Fixes made (with file:line references)
+   - Commit hash: `git rev-parse HEAD`
+3. Commit and push
+
+## Story.json Format
+
+```json
+{
+  "id": "US-XXX",
+  "title": "Feature Name",
+  "status": "pending|in_progress|done",
+  "requirements": [
+    {"item": "Description", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "Test name",
+      "steps": ["Step 1", "Step 2"],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Criteria", "done": false}
+  ],
+  "files": ["file1.ts", "file2.rs"]
+}
+```
 
 ## Architecture
 
-### MCP Tools (port 19420)
+### MCP Tools (HTTP port 19420, WebSocket 9223)
 | Tool | Purpose |
 |------|---------|
 | `notify_ready(message)` | Send completion message to inbox |
-| `notify_busy()` | Signal working status |
 | `get_pending_comments()` | Get open comments on diff |
 | `reply_to_comment(id, msg)` | Reply to comment thread |
 | `resolve_comment(id, note?)` | Mark comment resolved |
@@ -45,18 +93,10 @@
 ### Key Files
 - `src/components/Terminal.tsx` - xterm.js + PTY
 - `src/components/DiffViewer.tsx` - Diff panel with comments
-- `src-tauri/src/server.rs` - HTTP API (port 19420)
+- `src-tauri/src/server.rs` - HTTP API
 - `scripts/mcp-bridge.cjs` - MCP tool handlers
 
-### Terminal Debug API
-```javascript
-window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].writeLine('message')
-window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].write('\r') // Enter
-window.__CLAUDE_SESSIONS_TERMINALS__[sessionId].getBuffer() // Read output
-```
-
 ## Screenshot Fix (Required)
-Use AppleScript before screenshots - macOS blocks programmatic focus:
 ```applescript
 tell application "System Events"
     tell process "claude-sessions"
@@ -64,9 +104,9 @@ tell application "System Events"
     end tell
 end tell
 ```
-**Only this command allowed.** No other AppleScript use.
+**Only this command allowed.** No other AppleScript.
 
 ## Database
-Location: `~/Library/Application Support/com.samb.claude-sessions/sessions.db`
+`~/Library/Application Support/com.samb.claude-sessions/sessions.db`
 
-Key tables: `sessions`, `workspaces`, `inbox_messages`, `diff_comments`
+Tables: `sessions`, `workspaces`, `inbox_messages`, `diff_comments`
