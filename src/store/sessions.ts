@@ -220,10 +220,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!session || session.phase.type !== "idle") return;
 
     // Transition from idle to running_claude (Terminal will spawn PTY with --continue)
+    // Set awaitingInput to true initially - assume ready until MCP says otherwise
+    // This prevents the spinner from flashing when session first activates
     set((state) => ({
       sessions: state.sessions.map((s) =>
         s.id === id
-          ? { ...s, phase: { type: "running_claude" }, lastActivityAt: Date.now() }
+          ? { ...s, phase: { type: "running_claude" }, lastActivityAt: Date.now(), awaitingInput: true }
           : s
       ),
     }));
@@ -256,7 +258,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             isRestored: true,
             // Start restored sessions as IDLE - no PTY spawned until activated
             phase: { type: "idle" } as SessionPhase,
-            awaitingInput: s.status === "ready",
+            // Default to true (ready) for idle sessions - no spinner until we poll and confirm busy
+            awaitingInput: true,
             baseCommit: s.base_commit || undefined,
           })),
           activeSessionId: data[0].id,
