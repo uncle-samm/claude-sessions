@@ -104,6 +104,29 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
       // Assistant response - save to Convex
       const content: ContentBlock[] = message.message.content || [];
 
+      // Filter out placeholder responses like "No response requested"
+      const isPlaceholderResponse = content.length === 1 &&
+        content[0].type === "text" &&
+        "text" in content[0] &&
+        (content[0] as { text: string }).text.trim() === "No response requested.";
+
+      if (isPlaceholderResponse) {
+        console.log("[HeadlessChat] Skipping placeholder response");
+        return;
+      }
+
+      // Filter out messages that only contain MCP tool calls (internal signaling)
+      const onlyMcpTools = content.every(block =>
+        block.type === "tool_use" &&
+        "name" in block &&
+        (block as { name: string }).name.startsWith("mcp__")
+      );
+
+      if (onlyMcpTools && content.length > 0) {
+        console.log("[HeadlessChat] Skipping MCP-only message");
+        return;
+      }
+
       // Check for TodoWrite tool calls and extract todos
       for (const block of content) {
         if (block.type === "tool_use" && "name" in block && block.name === "TodoWrite") {
