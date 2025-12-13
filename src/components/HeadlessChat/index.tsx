@@ -68,10 +68,16 @@ export function HeadlessChat({ sessionId, cwd, isActive }: HeadlessChatProps) {
 
     if (message.type === "system" && message.subtype === "init") {
       // Initial message with session info
+      const claudeId = message.session_id;
       setSessionInfo(sessionId, {
-        claudeSessionId: message.session_id,
+        claudeSessionId: claudeId,
         tools: message.tools,
       });
+      // Persist claude_session_id to database
+      if (claudeId) {
+        invoke("update_session_claude_id", { id: sessionId, claudeSessionId: claudeId })
+          .catch(err => console.error("[HeadlessChat] Failed to save claude_session_id:", err));
+      }
       // Claude is now busy processing
       setClaudeBusy(sessionId, true);
     } else if (message.type === "assistant" && message.message) {
@@ -123,22 +129,39 @@ export function HeadlessChat({ sessionId, cwd, isActive }: HeadlessChatProps) {
     }
   }, [sessionId, setLoading, setClaudeBusy, setError]);
 
-  // Load session history on mount
+  // Load claude_session_id from database and session history on mount
   useEffect(() => {
     if (!isActive || hasLoadedHistory.current) return;
-    if (!sessionInfo?.claudeSessionId) return;
 
-    const loadHistory = async () => {
+    const loadSessionData = async () => {
       try {
-        console.log("[HeadlessChat] Loading session history for:", sessionInfo.claudeSessionId);
+        // First, try to load claude_session_id from database
+        let claudeId = sessionInfo?.claudeSessionId;
+
+        if (!claudeId) {
+          const storedId = await invoke<string | null>("get_session_claude_id", { id: sessionId });
+          if (storedId) {
+            claudeId = storedId;
+            setSessionInfo(sessionId, { claudeSessionId: storedId });
+            console.log("[HeadlessChat] Loaded claude_session_id from DB:", storedId);
+          }
+        }
+
+        if (!claudeId) {
+          console.log("[HeadlessChat] No claude_session_id yet, waiting for first message");
+          return;
+        }
+
+        // Load session history
+        console.log("[HeadlessChat] Loading session history for:", claudeId);
         const messages = await invoke<Array<{
           id: string;
-          msg_type: string;
+          type: string;  // Note: Rust uses #[serde(rename = "type")] so JSON has "type" not "msg_type"
           content: unknown;
           timestamp?: string;
           model?: string;
         }>>("load_claude_session_messages", {
-          claudeSessionId: sessionInfo.claudeSessionId,
+          claudeSessionId: claudeId,
           projectPath: cwd,
         });
 
@@ -146,7 +169,7 @@ export function HeadlessChat({ sessionId, cwd, isActive }: HeadlessChatProps) {
           // Convert to ChatMessage format
           const chatMessages: ChatMessage[] = messages.map((msg) => ({
             id: msg.id,
-            type: msg.msg_type as "user" | "assistant",
+            type: msg.type as "user" | "assistant",
             content: Array.isArray(msg.content)
               ? (msg.content as ContentBlock[])
               : [{ type: "text" as const, text: String(msg.content) }],
@@ -158,12 +181,12 @@ export function HeadlessChat({ sessionId, cwd, isActive }: HeadlessChatProps) {
           console.log("[HeadlessChat] Loaded", chatMessages.length, "messages from history");
         }
       } catch (err) {
-        console.log("[HeadlessChat] Could not load session history:", err);
+        console.log("[HeadlessChat] Could not load session data:", err);
       }
     };
 
-    loadHistory();
-  }, [isActive, sessionId, sessionInfo?.claudeSessionId, cwd, setMessages]);
+    loadSessionData();
+  }, [isActive, sessionId, sessionInfo?.claudeSessionId, cwd, setMessages, setSessionInfo]);
 
   // Keyboard shortcuts
   useEffect(() => {

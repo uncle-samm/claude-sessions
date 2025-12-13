@@ -368,6 +368,16 @@ fn update_session_base_commit(id: String, base_commit: String) -> Result<(), Str
 }
 
 #[tauri::command]
+fn update_session_claude_id(id: String, claude_session_id: String) -> Result<(), String> {
+    db::update_session_claude_id(&id, &claude_session_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_session_claude_id(id: String) -> Result<Option<String>, String> {
+    db::get_session_claude_id(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn fetch_origin(worktree_path: String) -> Result<(), String> {
     git::fetch_origin(&worktree_path)
 }
@@ -462,6 +472,8 @@ pub fn run() {
             get_current_branch,
             get_commit_sha,
             update_session_base_commit,
+            update_session_claude_id,
+            get_session_claude_id,
             fetch_origin,
             create_comment,
             get_comments_for_session,

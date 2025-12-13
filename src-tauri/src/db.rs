@@ -115,6 +115,12 @@ pub fn init_db() -> Result<()> {
         [],
     );
 
+    // Migration: Add claude_session_id column for session persistence
+    let _ = conn.execute(
+        "ALTER TABLE sessions ADD COLUMN claude_session_id TEXT",
+        [],
+    );
+
     // Create inbox_messages table
     conn.execute(
         "CREATE TABLE IF NOT EXISTS inbox_messages (
@@ -309,6 +315,28 @@ pub fn update_session_base_commit(id: &str, base_commit: &str) -> Result<()> {
             params![base_commit, Utc::now().to_rfc3339(), id],
         )?;
         Ok(())
+    })
+}
+
+pub fn update_session_claude_id(id: &str, claude_session_id: &str) -> Result<()> {
+    with_db(|conn| {
+        conn.execute(
+            "UPDATE sessions SET claude_session_id = ?1, updated_at = ?2 WHERE id = ?3",
+            params![claude_session_id, Utc::now().to_rfc3339(), id],
+        )?;
+        Ok(())
+    })
+}
+
+pub fn get_session_claude_id(id: &str) -> Result<Option<String>> {
+    with_db(|conn| {
+        let mut stmt = conn.prepare("SELECT claude_session_id FROM sessions WHERE id = ?1")?;
+        let result = stmt.query_row(params![id], |row| row.get::<_, Option<String>>(0));
+        match result {
+            Ok(id) => Ok(id),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     })
 }
 
