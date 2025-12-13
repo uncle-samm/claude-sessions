@@ -1,0 +1,66 @@
+{
+  "id": "US-024",
+  "title": "Convex Backend Integration with Auth",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Set up Convex project and connect to app", "done": false},
+    {"item": "Define schema for users, workspaces, sessions, messages", "done": false},
+    {"item": "Add authentication (Clerk or Convex Auth)", "done": false},
+    {"item": "Migrate session storage from SQLite to Convex", "done": false},
+    {"item": "Migrate message storage to Convex with real-time sync", "done": false},
+    {"item": "Update frontend to use Convex hooks (useQuery, useMutation)", "done": false},
+    {"item": "Real-time message updates during Claude conversations", "done": false},
+    {"item": "Multi-device session sync", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "User authentication flow",
+      "steps": [
+        "Open app without auth",
+        "Click sign in",
+        "Complete OAuth flow",
+        "Verify user session created"
+      ],
+      "done": false
+    },
+    {
+      "name": "Real-time message sync",
+      "steps": [
+        "Send message to Claude",
+        "Verify message appears in UI immediately",
+        "Verify Claude response appears without reload",
+        "Open same session on another device/tab",
+        "Verify messages sync in real-time"
+      ],
+      "done": false
+    },
+    {
+      "name": "Session persistence across devices",
+      "steps": [
+        "Create session on device A",
+        "Send messages to Claude",
+        "Open app on device B",
+        "Verify session and messages visible",
+        "Continue conversation on device B"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Messages appear in real-time without page reload", "done": false},
+    {"item": "User can sign in and have their sessions sync", "done": false},
+    {"item": "Sessions persist in cloud, accessible from any device", "done": false},
+    {"item": "Existing local sessions can be migrated to Convex", "done": false}
+  ],
+  "files": [
+    "convex/schema.ts",
+    "convex/sessions.ts",
+    "convex/messages.ts",
+    "convex/auth.ts",
+    "src/main.tsx",
+    "src/store/sessions.ts",
+    "src/store/messages.ts",
+    "src/components/HeadlessChat/index.tsx"
+  ]
+}
