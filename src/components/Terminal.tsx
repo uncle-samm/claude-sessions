@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { spawn, IPty } from "tauri-pty";
 import { useSessionStore } from "../store/sessions";
 import "@xterm/xterm/css/xterm.css";
@@ -15,6 +16,7 @@ interface TerminalProps {
 
 export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: TerminalProps) {
   const updateActivity = useSessionStore((s) => s.updateActivity);
+  const setClaudeBusy = useSessionStore((s) => s.setClaudeBusy);
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -22,6 +24,13 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
   const hasInitialized = useRef(false);
   const isActiveRef = useRef(isActive);
   const [error, setError] = useState<string | null>(null);
+
+  // Refs for stability improvements
+  const busyTimeoutRef = useRef<number | null>(null);
+  const isBusyRef = useRef(false);
+  const pendingDataRef = useRef<string>("");
+  const rafIdRef = useRef<number | null>(null);
+  const resizeTimeoutRef = useRef<number | null>(null);
 
   // Keep isActiveRef in sync
   useEffect(() => {
@@ -102,12 +111,49 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
     terminal.loadAddon(fitAddon);
     terminal.open(containerRef.current);
 
+    // Load WebGL addon for GPU-accelerated rendering (much faster than DOM/Canvas)
+    try {
+      const webglAddon = new WebglAddon();
+      webglAddon.onContextLoss(() => {
+        console.warn("[Terminal] WebGL context lost, disposing addon");
+        webglAddon.dispose();
+      });
+      terminal.loadAddon(webglAddon);
+      console.log("[Terminal] WebGL renderer loaded successfully");
+    } catch (e) {
+      console.warn("[Terminal] WebGL not available, using default renderer:", e);
+    }
+
     setTimeout(() => {
       fitAddon.fit();
       console.log("[Terminal] After fit - cols:", terminal.cols, "rows:", terminal.rows);
       terminal.focus();
       spawnPty();
     }, 100);
+
+    // Process busy detection on batched data with debouncing
+    const processBusyDetection = (data: string) => {
+      if (data.includes("to interrupt)")) {
+        // Clear any pending "not busy" timeout
+        if (busyTimeoutRef.current) {
+          clearTimeout(busyTimeoutRef.current);
+          busyTimeoutRef.current = null;
+        }
+        if (!isBusyRef.current) {
+          isBusyRef.current = true;
+          setClaudeBusy(sessionId, true);
+        }
+      } else if (isBusyRef.current) {
+        // Only set not-busy after 300ms of no "to interrupt)" messages
+        if (!busyTimeoutRef.current) {
+          busyTimeoutRef.current = window.setTimeout(() => {
+            isBusyRef.current = false;
+            setClaudeBusy(sessionId, false);
+            busyTimeoutRef.current = null;
+          }, 300);
+        }
+      }
+    };
 
     const spawnPty = async () => {
       try {
@@ -124,18 +170,37 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
           env: {
             TERM: "xterm-256color",
             COLORTERM: "truecolor",
+            LANG: "en_US.UTF-8",
+            LC_ALL: "en_US.UTF-8",
           },
         });
 
         ptyRef.current = pty;
 
+        // Batch PTY data writes with requestAnimationFrame for stability
+        // Note: Claude Code has a known bug where it inserts hard line breaks at ~80 chars
+        // See: https://github.com/anthropics/claude-code/issues/7670
         pty.onData((data) => {
-          // Skip empty data events and bare newlines (common with PTY during processing)
+          // Skip truly empty data
           if (data.length === 0) return;
-          if (data === '\n' || data === '\r' || data === '\r\n') return;
-          terminal.write(data);
-          // Track activity for auto-idle detection
-          updateActivity(sessionId);
+
+          // Accumulate data for batched writing
+          pendingDataRef.current += data;
+
+          // Schedule batched write on next animation frame
+          if (rafIdRef.current === null) {
+            rafIdRef.current = requestAnimationFrame(() => {
+              if (pendingDataRef.current) {
+                terminal.write(pendingDataRef.current);
+                // Process busy detection on batched data
+                processBusyDetection(pendingDataRef.current);
+                // Track activity for auto-idle detection
+                updateActivity(sessionId);
+                pendingDataRef.current = "";
+              }
+              rafIdRef.current = null;
+            });
+          }
         });
 
         pty.onExit(({ exitCode }) => {
@@ -159,16 +224,36 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
       }
     };
 
+    // Debounced resize handler to prevent layout thrashing
     const handleResize = () => {
-      if (fitAddonRef.current && isActiveRef.current) {
-        fitAddonRef.current.fit();
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
       }
+      resizeTimeoutRef.current = window.setTimeout(() => {
+        if (fitAddonRef.current && isActiveRef.current) {
+          fitAddonRef.current.fit();
+        }
+        resizeTimeoutRef.current = null;
+      }, 50);
     };
 
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      // Clear all timers
+      if (busyTimeoutRef.current) {
+        clearTimeout(busyTimeoutRef.current);
+        busyTimeoutRef.current = null;
+      }
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
+      }
       if (ptyRef.current) {
         ptyRef.current.kill();
       }
@@ -178,6 +263,8 @@ export function Terminal({ sessionId, cwd, isActive, phase, isRestored }: Termin
       }
       terminal.dispose();
       hasInitialized.current = false;
+      isBusyRef.current = false;
+      pendingDataRef.current = "";
     };
   }, [phase, sessionId, cwd, isRestored]);
 

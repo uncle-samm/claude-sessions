@@ -182,8 +182,8 @@ export function Sidebar() {
                         const isIdle = session.phase.type === "idle";
                         const isSettingUp = session.phase.type === "running_script";
                         const hasError = session.phase.type === "script_error";
-                        // Show spinner when busy (not awaiting input and running)
-                        const isBusy = session.phase.type === "running_claude" && !session.awaitingInput;
+                        // Show spinner when Claude is busy (detected from terminal output)
+                        const isBusy = session.phase.type === "running_claude" && session.isClaudeBusy === true;
 
                         return (
                         <li

@@ -25,6 +25,7 @@ export interface Session {
   awaitingInput?: boolean;
   baseCommit?: string; // Git commit SHA to diff against (stable reference)
   lastActivityAt?: number; // Timestamp of last terminal activity (for auto-idle)
+  isClaudeBusy?: boolean; // True when terminal shows "(esc to interrupt)"
 }
 
 interface SessionStore {
@@ -44,6 +45,7 @@ interface SessionStore {
   updateActivity: (id: string) => void;
   activateSession: (id: string) => void;
   idleSession: (id: string) => void;
+  setClaudeBusy: (id: string, busy: boolean) => void;
   loadFromStorage: () => Promise<void>;
   pollSessionStatus: () => void;
   startAutoIdleTimer: () => void;
@@ -239,6 +241,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set((state) => ({
       sessions: state.sessions.map((s) =>
         s.id === id ? { ...s, phase: { type: "idle" } } : s
+      ),
+    }));
+  },
+
+  setClaudeBusy: (id: string, busy: boolean) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, isClaudeBusy: busy } : s
       ),
     }));
   },
