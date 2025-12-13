@@ -49,9 +49,11 @@ export default defineSchema({
       v.literal("system"),
       v.literal("error")
     ),
-    content: v.any(), // ContentBlock[] - text, tool_use, tool_result, etc.
+    content: v.any(), // ContentBlock[] - text, tool_use, tool_result, thinking, etc.
     cost: v.optional(v.number()),
     model: v.optional(v.string()),
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
   })
     .index("by_session", ["sessionId"])
     .index("by_external_id", ["externalId"]),

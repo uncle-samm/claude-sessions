@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import { ChatMessage, ContentBlock, ToolUseContent, ToolResultContent } from "../../store/messages";
+import { ChatMessage, ContentBlock, ToolUseContent, ToolResultContent, ThinkingContent } from "../../store/messages";
 import { ToolCall } from "./ToolCall";
+import { ThinkingBlock } from "./ThinkingBlock";
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -79,6 +80,11 @@ function ContentBlockView({ block, toolResults }: { block: ContentBlock; toolRes
   if (block.type === "text") {
     const textBlock = block as { type: "text"; text: string };
     return <div className="message-text">{renderText(textBlock.text)}</div>;
+  }
+
+  if (block.type === "thinking") {
+    const thinkingBlock = block as ThinkingContent;
+    return <ThinkingBlock thinking={thinkingBlock.thinking} />;
   }
 
   if (block.type === "tool_use") {

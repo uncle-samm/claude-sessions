@@ -20,7 +20,12 @@ export interface ToolResultContent {
   is_error?: boolean;
 }
 
-export type ContentBlock = TextContent | ToolUseContent | ToolResultContent | { type: string };
+export interface ThinkingContent {
+  type: "thinking";
+  thinking: string;
+}
+
+export type ContentBlock = TextContent | ToolUseContent | ToolResultContent | ThinkingContent | { type: string };
 
 export interface AssistantMessage {
   id?: string;
