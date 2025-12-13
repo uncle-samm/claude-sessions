@@ -1,0 +1,114 @@
+{
+  "id": "US-023",
+  "title": "HeadlessChat UI Improvements",
+  "type": "feature",
+  "description": "Enhance the HeadlessChat UI to be more polished and feature-rich with keyboard shortcuts, session persistence, TodoWrite panel, and improved tool renderers",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Tab key toggles extended thinking mode on/off", "done": false},
+    {"item": "Shift+Tab cycles through modes: normal → acceptEdits → plan", "done": false},
+    {"item": "Ctrl+T toggles TodoWrite panel visibility", "done": false},
+    {"item": "Session persistence - load previous messages when reopening session", "done": false},
+    {"item": "TodoWrite tool renders as sticky bottom panel with checkable items", "done": false},
+    {"item": "Read tool has collapsible header with Expand button", "done": false},
+    {"item": "Edit tool shows inline diff with red/green highlighting", "done": false},
+    {"item": "Bash tool shows command, output, and exit code badge", "done": false},
+    {"item": "Mode indicator displays in header (thinking, acceptEdits, plan)", "done": false},
+    {"item": "Visual polish: cards, shadows, badges, spinners", "done": false},
+    {"item": "Thinking blocks render as collapsible gray italic text", "done": false},
+    {"item": "Token count display (X in, Y out)", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "Tab toggles thinking mode",
+      "steps": [
+        "Focus on HeadlessChat",
+        "Press Tab key",
+        "Verify header shows 'Thinking enabled'",
+        "Press Tab again",
+        "Verify indicator disappears"
+      ],
+      "done": false
+    },
+    {
+      "name": "Shift+Tab cycles permission modes",
+      "steps": [
+        "Focus on HeadlessChat (normal mode)",
+        "Press Shift+Tab",
+        "Verify header shows 'Auto-accept on'",
+        "Press Shift+Tab again",
+        "Verify header shows 'Plan mode on'",
+        "Press Shift+Tab again",
+        "Verify back to normal (no indicator)"
+      ],
+      "done": false
+    },
+    {
+      "name": "Session persistence",
+      "steps": [
+        "Send a message to Claude",
+        "Note the claudeSessionId",
+        "Close and reopen the session",
+        "Verify previous messages are loaded",
+        "Send another message",
+        "Verify --resume flag is used"
+      ],
+      "done": false
+    },
+    {
+      "name": "TodoWrite panel",
+      "steps": [
+        "Trigger a TodoWrite tool call",
+        "Verify sticky panel appears at bottom",
+        "Verify items show with checkboxes and priority badges",
+        "Press Ctrl+T",
+        "Verify panel hides",
+        "Press Ctrl+T again",
+        "Verify panel reappears"
+      ],
+      "done": false
+    },
+    {
+      "name": "Tool renderers",
+      "steps": [
+        "Trigger Read tool - verify collapsible with Expand button",
+        "Trigger Edit tool - verify inline diff with red/green",
+        "Trigger Bash tool - verify command, output, exit badge",
+        "Trigger Glob tool - verify file count badge",
+        "Trigger Grep tool - verify match highlighting"
+      ],
+      "done": false
+    },
+    {
+      "name": "Visual polish",
+      "steps": [
+        "Compare UI to design-reference images",
+        "Verify cards have rounded corners and shadows",
+        "Verify badges display correctly",
+        "Verify spinner shows during processing"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "All keyboard shortcuts work (Tab, Shift+Tab, Ctrl+T)", "done": false},
+    {"item": "Session messages persist and reload correctly", "done": false},
+    {"item": "TodoWrite panel is sticky at bottom with toggle", "done": false},
+    {"item": "Tool renderers match design references", "done": false},
+    {"item": "Mode indicators display in header", "done": false},
+    {"item": "UI looks polished with cards, badges, shadows", "done": false}
+  ],
+  "files": [
+    "src-tauri/src/claude_sessions.rs",
+    "src-tauri/src/lib.rs",
+    "src/store/settings.ts",
+    "src/store/todos.ts",
+    "src/store/messages.ts",
+    "src/components/HeadlessChat/TodoList.tsx",
+    "src/components/HeadlessChat/ThinkingBlock.tsx",
+    "src/components/HeadlessChat/ToolCall.tsx",
+    "src/components/HeadlessChat/InputArea.tsx",
+    "src/components/HeadlessChat/index.tsx",
+    "src/components/HeadlessChat/styles.css"
+  ]
+}

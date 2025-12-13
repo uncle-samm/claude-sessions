@@ -1,4 +1,5 @@
 mod claude_headless;
+mod claude_sessions;
 mod db;
 mod git;
 mod server;
@@ -474,6 +475,9 @@ pub fn run() {
             claude_headless::stop_claude_session,
             claude_headless::is_claude_running,
             claude_headless::get_running_claude_sessions,
+            // Session persistence commands
+            claude_sessions::load_claude_session_messages,
+            claude_sessions::list_claude_sessions,
         ])
         .setup(|_app| {
             // Spawn HTTP server for MCP bridge in background

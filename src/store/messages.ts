@@ -61,6 +61,7 @@ interface MessageStore {
   // Actions
   addMessage: (sessionId: string, message: ChatMessage) => void;
   addUserMessage: (sessionId: string, text: string) => void;
+  setMessages: (sessionId: string, messages: ChatMessage[]) => void;
   setSessionInfo: (sessionId: string, info: ClaudeSessionInfo) => void;
   setLoading: (sessionId: string, loading: boolean) => void;
   setError: (sessionId: string, error: string | null) => void;
@@ -92,6 +93,15 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
       timestamp: Date.now(),
     };
     get().addMessage(sessionId, message);
+  },
+
+  setMessages: (sessionId: string, messages: ChatMessage[]) => {
+    set((state) => ({
+      messagesBySession: {
+        ...state.messagesBySession,
+        [sessionId]: messages,
+      },
+    }));
   },
 
   setSessionInfo: (sessionId: string, info: ClaudeSessionInfo) => {

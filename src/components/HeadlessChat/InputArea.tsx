@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { useSettingsStore } from "../../store/settings";
 
 interface InputAreaProps {
   onSubmit: (message: string) => void;
@@ -9,6 +10,7 @@ interface InputAreaProps {
 export function InputArea({ onSubmit, disabled, placeholder }: InputAreaProps) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { toggleThinking, cyclePermissionMode, toggleTodosPanel, toggleVerboseMode } = useSettingsStore();
 
   // Auto-resize textarea
   useEffect(() => {
@@ -41,6 +43,35 @@ export function InputArea({ onSubmit, disabled, placeholder }: InputAreaProps) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+      return;
+    }
+
+    // Tab: Toggle thinking mode
+    if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      toggleThinking();
+      return;
+    }
+
+    // Shift+Tab: Cycle permission mode
+    if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      cyclePermissionMode();
+      return;
+    }
+
+    // Ctrl+T: Toggle todos panel
+    if (e.key === "t" && e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      toggleTodosPanel();
+      return;
+    }
+
+    // Ctrl+O: Toggle verbose mode
+    if (e.key === "o" && e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      toggleVerboseMode();
+      return;
     }
   };
 
