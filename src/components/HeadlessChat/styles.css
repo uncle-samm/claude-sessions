@@ -1,0 +1,546 @@
+/* HeadlessChat Container */
+.headless-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1a1a;
+  color: #f5f5f5;
+}
+
+/* Header */
+.headless-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #252525;
+  border-bottom: 1px solid #333;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.header-icon {
+  font-size: 18px;
+}
+
+.header-session-id {
+  font-size: 11px;
+  color: #666;
+  font-family: monospace;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #f59e0b;
+}
+
+.status-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #555;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Error Banner */
+.headless-chat-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(239, 68, 68, 0.15);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  font-size: 13px;
+}
+
+.error-icon {
+  font-size: 16px;
+}
+
+.error-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #f87171;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.error-dismiss:hover {
+  color: #fff;
+}
+
+/* Message List */
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.message-list-empty p {
+  margin: 0 0 8px;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #555;
+}
+
+/* Chat Messages */
+.chat-message {
+  max-width: 90%;
+}
+
+.chat-message-user {
+  align-self: flex-end;
+}
+
+.chat-message-assistant {
+  align-self: flex-start;
+}
+
+.chat-message-system,
+.chat-message-error {
+  align-self: center;
+  max-width: 100%;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.message-role {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+}
+
+.chat-message-user .message-role {
+  color: #3b82f6;
+}
+
+.chat-message-assistant .message-role {
+  color: #10b981;
+}
+
+.chat-message-error .message-role {
+  color: #ef4444;
+}
+
+.message-cost {
+  font-size: 11px;
+  color: #666;
+  font-family: monospace;
+}
+
+.message-body {
+  background: #252525;
+  border-radius: 12px;
+  padding: 12px 16px;
+  line-height: 1.6;
+}
+
+.chat-message-user .message-body {
+  background: #2563eb;
+  color: white;
+}
+
+.chat-message-error .message-body {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.message-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Code Blocks */
+.code-block {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+  overflow-x: auto;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.inline-code {
+  background: #333;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 0.9em;
+}
+
+/* Tool Calls */
+.message-tool {
+  margin: 8px 0;
+}
+
+.tool-read,
+.tool-edit,
+.tool-bash,
+.tool-write,
+.tool-glob,
+.tool-grep,
+.tool-generic {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-file-path,
+.tool-bash-header,
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #252525;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tool-file-path:hover,
+.tool-bash-header:hover,
+.tool-header:hover {
+  background: #2a2a2a;
+}
+
+.tool-chevron {
+  color: #666;
+  font-size: 10px;
+  width: 12px;
+}
+
+.tool-icon {
+  font-size: 14px;
+}
+
+.tool-path-text,
+.tool-command,
+.tool-name {
+  flex: 1;
+  font-family: monospace;
+  color: #ddd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-status-ok {
+  color: #22c55e;
+  font-size: 14px;
+}
+
+.tool-status-error {
+  color: #ef4444;
+  font-size: 14px;
+}
+
+.tool-size,
+.tool-count {
+  font-size: 11px;
+  color: #666;
+}
+
+.tool-content {
+  padding: 12px;
+  background: #1a1a1a;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tool-content code {
+  white-space: pre;
+}
+
+/* Edit diff */
+.tool-diff {
+  padding: 8px;
+}
+
+.diff-section {
+  margin: 4px 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.diff-label {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.diff-removed {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.diff-removed .diff-label {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.diff-removed pre {
+  color: #f87171;
+}
+
+.diff-added {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.diff-added .diff-label {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.diff-added pre {
+  color: #4ade80;
+}
+
+.diff-section pre {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* Bash tool */
+.tool-bash.has-error {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.tool-bash.has-error .tool-bash-header {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.tool-bash-content {
+  padding: 8px 12px;
+}
+
+.tool-description {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.tool-command-full {
+  background: #1a1a1a;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 8px 0;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.tool-output {
+  margin-top: 8px;
+}
+
+.tool-output-label {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.tool-output pre {
+  background: #1a1a1a;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-height: 300px;
+  overflow: auto;
+}
+
+/* File list for Glob */
+.tool-file-list {
+  padding: 8px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tool-file-item {
+  font-family: monospace;
+  font-size: 12px;
+  padding: 4px 0;
+  color: #aaa;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.tool-file-item:last-child {
+  border-bottom: none;
+}
+
+/* Generic tool */
+.tool-body {
+  padding: 12px;
+}
+
+.tool-section {
+  margin: 8px 0;
+}
+
+.tool-section-label {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.tool-section pre {
+  background: #1a1a1a;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+/* Loading */
+.message-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #252525;
+  border-radius: 12px;
+  align-self: flex-start;
+  color: #888;
+  font-size: 13px;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #444;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Input Area */
+.input-area {
+  padding: 12px 16px;
+  border-top: 1px solid #333;
+  background: #1e1e1e;
+}
+
+.input-container {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.input-textarea {
+  flex: 1;
+  background: #252525;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #f5f5f5;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: 20px;
+  max-height: 200px;
+  line-height: 1.5;
+}
+
+.input-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.input-textarea::placeholder {
+  color: #666;
+}
+
+.input-textarea:disabled {
+  background: #1a1a1a;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.input-submit-btn {
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.input-submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.input-submit-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.input-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #555;
+}
+
+.input-hint kbd {
+  background: #333;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+}

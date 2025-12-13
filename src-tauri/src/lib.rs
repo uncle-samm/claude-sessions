@@ -1,3 +1,4 @@
+mod claude_headless;
 mod db;
 mod git;
 mod server;
@@ -467,6 +468,12 @@ pub fn run() {
             reply_to_comment,
             resolve_comment,
             delete_comment,
+            // Headless Claude commands
+            claude_headless::start_claude_headless,
+            claude_headless::send_claude_input,
+            claude_headless::stop_claude_session,
+            claude_headless::is_claude_running,
+            claude_headless::get_running_claude_sessions,
         ])
         .setup(|_app| {
             // Spawn HTTP server for MCP bridge in background

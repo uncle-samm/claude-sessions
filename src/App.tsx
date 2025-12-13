@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
-import { Terminal } from "./components/Terminal";
+import { HeadlessChat } from "./components/HeadlessChat";
 import { SetupModal } from "./components/SetupModal";
 import { DiffViewer } from "./components/DiffViewer";
 import { useSessionStore, Session } from "./store/sessions";
@@ -19,15 +19,13 @@ function SessionContainer({ session, isActive }: { session: Session; isActive: b
     );
   }
 
-  // Show Terminal for claude phase
+  // Show HeadlessChat for claude phase
   if (phaseType === "running_claude") {
     return (
-      <Terminal
+      <HeadlessChat
         sessionId={session.id}
         cwd={session.finalCwd || session.cwd}
         isActive={isActive}
-        phase={phaseType}
-        isRestored={session.isRestored}
       />
     );
   }

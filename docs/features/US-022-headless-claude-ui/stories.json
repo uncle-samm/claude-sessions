@@ -1,0 +1,219 @@
+{
+  "id": "US-022",
+  "title": "Replace Terminal with Headless Claude Code UI",
+  "type": "feature",
+  "description": "Replace xterm.js terminal with a headless mode UI that communicates with Claude Code via JSON streaming, providing full control over rendering and eliminating terminal bugs",
+  "status": "in_progress",
+  "userDecisions": {
+    "fallback": "Headless only - remove terminal completely",
+    "detailLevel": "Full details - show all tool calls, file contents, diffs inline",
+    "approach": "Full replacement - build complete feature parity before switching"
+  },
+  "requirements": [
+    {"item": "Create Rust backend to spawn Claude with --output-format stream-json", "done": false},
+    {"item": "Parse JSON stream and emit Tauri events", "done": false},
+    {"item": "Create MessageList component for rendering messages", "done": false},
+    {"item": "Create ToolCall component for Read/Edit/Bash display", "done": false},
+    {"item": "Create InputArea component for user input", "done": false},
+    {"item": "Handle multi-turn conversations with --resume", "done": false},
+    {"item": "Support permission modes (plan/edit/accept)", "done": false},
+    {"item": "Remove Terminal.tsx and xterm.js dependencies", "done": false},
+    {"item": "Integrate with existing session store", "done": false},
+    {"item": "Handle errors and edge cases gracefully", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "Basic headless communication",
+      "steps": [
+        "Run claude -p 'say hello' --output-format stream-json manually",
+        "Verify JSON output format",
+        "Start session via Tauri command",
+        "Verify frontend receives events via listen()"
+      ],
+      "verification": [
+        "Console shows JSON lines from Claude",
+        "Each line parses as valid JSON",
+        "Frontend event handler fires"
+      ],
+      "done": false
+    },
+    {
+      "name": "Message rendering",
+      "steps": [
+        "Send simple prompt via headless mode",
+        "Verify assistant message renders in MessageList",
+        "Check markdown formatting works",
+        "Test code blocks with syntax highlighting"
+      ],
+      "verification": [
+        "Text messages display with proper formatting",
+        "Code blocks have syntax highlighting",
+        "No raw JSON visible to user"
+      ],
+      "done": false
+    },
+    {
+      "name": "Tool call display - Read",
+      "steps": [
+        "Send prompt: 'read package.json'",
+        "Verify tool_use message is captured",
+        "Check ToolCall component renders tool name, input, output",
+        "Verify full file content shown (not truncated)"
+      ],
+      "verification": [
+        "Tool call header shows 'Read'",
+        "File path is displayed",
+        "Full file contents visible",
+        "Proper code formatting"
+      ],
+      "done": false
+    },
+    {
+      "name": "Tool call display - Edit",
+      "steps": [
+        "Send prompt: 'add a comment to package.json'",
+        "Verify Edit tool_use renders",
+        "Check old_string and new_string shown",
+        "Verify diff highlighting (red/green)"
+      ],
+      "verification": [
+        "Edit shows file path",
+        "Before/after diff visible",
+        "Red for removed, green for added"
+      ],
+      "done": false
+    },
+    {
+      "name": "Tool call display - Bash",
+      "steps": [
+        "Send prompt: 'run ls -la'",
+        "Verify Bash tool renders",
+        "Check command and output shown"
+      ],
+      "verification": [
+        "Command displayed in code block",
+        "Output displayed below",
+        "Scrollable if long output"
+      ],
+      "done": false
+    },
+    {
+      "name": "Multi-turn conversation",
+      "steps": [
+        "Start session, get session_id from init message",
+        "Send follow-up with --resume <session_id>",
+        "Verify context is maintained",
+        "Check message history displays correctly"
+      ],
+      "verification": [
+        "Session ID captured from init",
+        "Resume works with same session",
+        "Previous messages visible",
+        "Context maintained (Claude remembers)"
+      ],
+      "done": false
+    },
+    {
+      "name": "User input flow",
+      "steps": [
+        "Type message in InputArea",
+        "Click submit or press Enter",
+        "Verify message sent to Claude",
+        "Check user message renders in chat",
+        "Wait for assistant response"
+      ],
+      "verification": [
+        "Input clears after submit",
+        "User message appears immediately",
+        "Loading indicator shows",
+        "Assistant response arrives"
+      ],
+      "done": false
+    },
+    {
+      "name": "Permission modes",
+      "steps": [
+        "Test with --permission-mode plan (read only)",
+        "Test with --permission-mode acceptEdits (auto approve)",
+        "Test default mode"
+      ],
+      "verification": [
+        "Plan mode blocks writes",
+        "Accept mode auto-approves",
+        "Default prompts for approval"
+      ],
+      "done": false
+    },
+    {
+      "name": "Error handling",
+      "steps": [
+        "Test with invalid prompt",
+        "Test when Claude process crashes",
+        "Test network timeout scenario",
+        "Verify error messages display"
+      ],
+      "verification": [
+        "Error state shown in UI",
+        "Can retry/restart session",
+        "No crash or hang"
+      ],
+      "done": false
+    },
+    {
+      "name": "Session lifecycle",
+      "steps": [
+        "Create new session",
+        "Session appears in sidebar",
+        "Send messages, verify they persist",
+        "Close session",
+        "Reopen session (via --continue)",
+        "Verify history loaded"
+      ],
+      "verification": [
+        "New session creates properly",
+        "Messages persist across interaction",
+        "Session can be continued",
+        "Full history available"
+      ],
+      "done": false
+    },
+    {
+      "name": "Feature parity with terminal",
+      "steps": [
+        "Run same prompt in terminal version",
+        "Run same prompt in headless version",
+        "Compare: All tool calls visible?",
+        "Compare: Same information displayed?",
+        "Compare: Response quality identical?"
+      ],
+      "verification": [
+        "Feature parity achieved",
+        "No information loss",
+        "Better or equal UX"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "All messages render correctly with markdown", "done": false},
+    {"item": "All tool calls (Read, Edit, Bash) display full details", "done": false},
+    {"item": "Multi-turn conversations work with --resume", "done": false},
+    {"item": "User can type and send messages", "done": false},
+    {"item": "Permission modes work correctly", "done": false},
+    {"item": "Errors handled gracefully", "done": false},
+    {"item": "No terminal rendering bugs (newlines, question marks)", "done": false},
+    {"item": "Feature parity with terminal version", "done": false},
+    {"item": "Terminal.tsx and xterm.js removed", "done": false}
+  ],
+  "files": [
+    "src-tauri/src/claude_headless.rs",
+    "src-tauri/src/lib.rs",
+    "src/components/HeadlessChat/index.tsx",
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/components/HeadlessChat/ToolCall.tsx",
+    "src/components/HeadlessChat/InputArea.tsx",
+    "src/store/messages.ts",
+    "src/App.tsx",
+    "src/components/Terminal.tsx (DELETE)"
+  ]
+}
