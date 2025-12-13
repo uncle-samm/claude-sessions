@@ -120,10 +120,14 @@
 /* Chat Messages */
 .chat-message {
   max-width: 90%;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
 }
 
 .chat-message-user {
   align-self: flex-end;
+  flex-direction: row-reverse;
 }
 
 .chat-message-assistant {
@@ -134,6 +138,40 @@
 .chat-message-error {
   align-self: center;
   max-width: 100%;
+}
+
+/* Message Avatars */
+.message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.message-avatar.user {
+  background: #3b82f6;
+  color: white;
+}
+
+.message-avatar.assistant {
+  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  color: white;
+}
+
+.message-avatar.system,
+.message-avatar.error {
+  background: #444;
+  color: #aaa;
+}
+
+.message-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .message-header {
@@ -154,7 +192,7 @@
 }
 
 .chat-message-assistant .message-role {
-  color: #10b981;
+  color: #a855f7;
 }
 
 .chat-message-error .message-role {
@@ -278,9 +316,45 @@
 }
 
 .tool-size,
-.tool-count {
+.tool-count,
+.tool-line-count {
   font-size: 11px;
   color: #666;
+  margin-left: 4px;
+}
+
+/* Tool header row with expand button */
+.tool-header-row {
+  display: flex;
+  align-items: center;
+  background: #252525;
+  padding-right: 8px;
+}
+
+.tool-header-row .tool-file-path {
+  flex: 1;
+}
+
+/* Tool icons */
+.tool-icon.file-icon,
+.tool-icon.edit-icon {
+  width: 16px;
+  height: 16px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.tool-icon.file-icon {
+  background-color: #666;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpolyline points='14 2 14 8 20 8'/%3E%3C/svg%3E") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpolyline points='14 2 14 8 20 8'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+.tool-icon.edit-icon {
+  background-color: #4ade80;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/%3E%3Cpath d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'/%3E%3C/svg%3E") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/%3E%3Cpath d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 
 .tool-content {
@@ -300,9 +374,74 @@
 
 /* Edit diff */
 .tool-diff {
-  padding: 8px;
+  padding: 0;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
+/* Diff lines with line numbers */
+.diff-lines {
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 2px 0;
+}
+
+.diff-lines.diff-removed {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.diff-lines.diff-added {
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.diff-line {
+  display: flex;
+  align-items: stretch;
+}
+
+.diff-line-number {
+  width: 40px;
+  padding: 0 8px;
+  text-align: right;
+  color: #555;
+  background: rgba(0, 0, 0, 0.2);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.diff-marker {
+  width: 20px;
+  padding: 0 4px;
+  text-align: center;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.diff-removed .diff-marker {
+  color: #f87171;
+}
+
+.diff-added .diff-marker {
+  color: #4ade80;
+}
+
+.diff-line-content {
+  flex: 1;
+  padding: 0 8px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.diff-removed .diff-line-content {
+  color: #fca5a5;
+}
+
+.diff-added .diff-line-content {
+  color: #86efac;
+}
+
+/* Legacy diff section support */
 .diff-section {
   margin: 4px 0;
   border-radius: 4px;
@@ -441,14 +580,28 @@
 /* Loading */
 .message-loading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+  align-self: flex-start;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px 16px;
   background: #252525;
   border-radius: 12px;
-  align-self: flex-start;
   color: #888;
   font-size: 13px;
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  background: #a855f7;
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 .loading-spinner {
@@ -637,6 +790,15 @@
   font-size: 14px;
 }
 
+/* Styled todo icon (clipboard) */
+.todo-icon-styled {
+  width: 16px;
+  height: 16px;
+  background-color: #888;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3Crect x='8' y='2' width='8' height='4' rx='1' ry='1'/%3E%3C/svg%3E") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3Crect x='8' y='2' width='8' height='4' rx='1' ry='1'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
 .todo-title {
   font-size: 12px;
   font-weight: 600;
@@ -701,6 +863,51 @@
   font-size: 12px;
 }
 
+/* Circular todo checkbox */
+.todo-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #555;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.todo-checkbox.pending {
+  border-color: #555;
+  background: transparent;
+}
+
+.todo-checkbox.in-progress {
+  border-color: #3b82f6;
+  background: transparent;
+}
+
+.todo-checkbox.in-progress .progress-dot {
+  width: 8px;
+  height: 8px;
+  background: #3b82f6;
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.todo-checkbox.completed {
+  border-color: #22c55e;
+  background: #22c55e;
+}
+
+.todo-checkbox.completed .checkmark {
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* Legacy status icon support */
 .todo-status-icon {
   font-size: 12px;
   width: 16px;

@@ -5,13 +5,24 @@ interface TodoListProps {
   sessionId: string;
 }
 
-// Get status icon
-function getStatusIcon(status: TodoStatus): string {
-  switch (status) {
-    case "completed": return "✓";
-    case "in_progress": return "●";
-    case "pending": return "○";
-  }
+// Styled circular checkbox component
+function TodoCheckbox({ status }: { status: TodoStatus }) {
+  return (
+    <div className={`todo-checkbox ${status}`}>
+      {status === "completed" && <span className="checkmark" />}
+      {status === "in_progress" && <span className="progress-dot" />}
+    </div>
+  );
+}
+
+// Priority badge component
+function PriorityBadge({ priority }: { priority?: string }) {
+  if (!priority || priority === "low") return null;
+  return (
+    <span className={`priority-badge ${priority}`}>
+      {priority}
+    </span>
+  );
 }
 
 // Get status class
@@ -34,7 +45,7 @@ export function TodoList({ todos }: TodoListProps) {
   return (
     <div className="todo-panel">
       <div className="todo-header">
-        <span className="todo-icon">📋</span>
+        <span className="todo-icon-styled" />
         <span className="todo-title">Todo List</span>
         <span className="todo-progress">
           {completedCount}/{totalCount} ({progressPercent}%)
@@ -61,10 +72,11 @@ export function TodoList({ todos }: TodoListProps) {
       <div className="todo-items">
         {todos.map((todo, index) => (
           <div key={index} className={`todo-item ${getStatusClass(todo.status)}`}>
-            <span className="todo-status-icon">{getStatusIcon(todo.status)}</span>
+            <TodoCheckbox status={todo.status} />
             <span className={`todo-content ${todo.status === "completed" ? "strikethrough" : ""}`}>
               {todo.content}
             </span>
+            <PriorityBadge priority={todo.priority} />
           </div>
         ))}
       </div>

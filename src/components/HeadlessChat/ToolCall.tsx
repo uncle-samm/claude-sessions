@@ -39,24 +39,55 @@ function getLanguage(filePath: string): string {
   return langMap[ext || ""] || "plaintext";
 }
 
+// Count lines in content
+function countLines(content: string): number {
+  if (!content) return 0;
+  return content.split("\n").length;
+}
+
 // Read tool display
 function ReadTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const filePath = input.file_path as string || "";
   const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const lineCount = countLines(content);
 
   return (
     <div className="tool-read">
-      <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">📄</span>
-        <span className="tool-path-text">{formatPath(filePath)}</span>
+      <div className="tool-header-row">
+        <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
+          <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+          <span className="tool-icon file-icon" />
+          <span className="tool-path-text">{formatPath(filePath)}</span>
+          <span className="tool-line-count">({lineCount} lines)</span>
+        </div>
+        <button className="expand-btn" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
+          {expanded ? "Collapse" : "Expand"}
+        </button>
       </div>
       {expanded && content && (
         <pre className={`tool-content lang-${getLanguage(filePath)}`}>
           <code>{content}</code>
         </pre>
       )}
+    </div>
+  );
+}
+
+// Render diff lines with line numbers
+function DiffLines({ content, type, startLine = 1 }: { content: string; type: "removed" | "added"; startLine?: number }) {
+  const lines = content.split("\n");
+  const marker = type === "removed" ? "-" : "+";
+
+  return (
+    <div className={`diff-lines diff-${type}`}>
+      {lines.map((line, i) => (
+        <div key={i} className="diff-line">
+          <span className="diff-line-number">{startLine + i}</span>
+          <span className="diff-marker">{marker}</span>
+          <span className="diff-line-content">{line || " "}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -70,26 +101,18 @@ function EditTool({ input, result }: { input: Record<string, unknown>; result?: 
 
   return (
     <div className="tool-edit">
-      <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">✏️</span>
-        <span className="tool-path-text">{formatPath(filePath)}</span>
-        {result !== undefined && <span className="tool-status-ok">✓</span>}
+      <div className="tool-header-row">
+        <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
+          <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+          <span className="tool-icon edit-icon" />
+          <span className="tool-path-text">{formatPath(filePath)}</span>
+          {result !== undefined && <span className="tool-status-ok">✓</span>}
+        </div>
       </div>
       {expanded && (
         <div className="tool-diff">
-          {oldString && (
-            <div className="diff-section diff-removed">
-              <div className="diff-label">- Removed</div>
-              <pre><code>{oldString}</code></pre>
-            </div>
-          )}
-          {newString && (
-            <div className="diff-section diff-added">
-              <div className="diff-label">+ Added</div>
-              <pre><code>{newString}</code></pre>
-            </div>
-          )}
+          {oldString && <DiffLines content={oldString} type="removed" />}
+          {newString && <DiffLines content={newString} type="added" />}
         </div>
       )}
     </div>

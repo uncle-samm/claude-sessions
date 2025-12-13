@@ -6,6 +6,7 @@ export interface TodoItem {
   content: string;
   status: TodoStatus;
   activeForm?: string;
+  priority?: string;
 }
 
 interface TodosState {
@@ -59,5 +60,6 @@ export function extractTodosFromToolInput(input: unknown): TodoItem[] {
     content: String((todo as Record<string, unknown>).content || ""),
     status: ((todo as Record<string, unknown>).status as TodoStatus) || "pending",
     activeForm: (todo as Record<string, unknown>).activeForm as string | undefined,
+    priority: (todo as Record<string, unknown>).priority as string | undefined,
   }));
 }

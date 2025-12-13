@@ -114,6 +114,18 @@ function ContentBlockView({ block, toolResults }: { block: ContentBlock; toolRes
   );
 }
 
+// Avatar component
+function MessageAvatar({ type }: { type: string }) {
+  const isUser = type === "user";
+  const isAssistant = type === "assistant";
+
+  return (
+    <div className={`message-avatar ${type}`}>
+      {isUser ? "U" : isAssistant ? "C" : "S"}
+    </div>
+  );
+}
+
 // Single message component
 function Message({ message }: { message: ChatMessage }) {
   // Build a map of tool results for this message
@@ -134,18 +146,21 @@ function Message({ message }: { message: ChatMessage }) {
 
   return (
     <div className={`chat-message chat-message-${message.type}`}>
-      <div className="message-header">
-        <span className="message-role">
-          {isUser ? "You" : isSystem ? "System" : isError ? "Error" : "Claude"}
-        </span>
-        {message.cost !== undefined && (
-          <span className="message-cost">${message.cost.toFixed(4)}</span>
-        )}
-      </div>
-      <div className="message-body">
-        {message.content.map((block, i) => (
-          <ContentBlockView key={i} block={block} toolResults={toolResults} />
-        ))}
+      <MessageAvatar type={message.type} />
+      <div className="message-content">
+        <div className="message-header">
+          <span className="message-role">
+            {isUser ? "You" : isSystem ? "System" : isError ? "Error" : "Claude"}
+          </span>
+          {message.cost !== undefined && (
+            <span className="message-cost">${message.cost.toFixed(4)}</span>
+          )}
+        </div>
+        <div className="message-body">
+          {message.content.map((block, i) => (
+            <ContentBlockView key={i} block={block} toolResults={toolResults} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -175,8 +190,11 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
       ))}
       {isLoading && (
         <div className="message-loading">
-          <div className="loading-spinner" />
-          <span>Claude is thinking...</span>
+          <div className="message-avatar assistant">C</div>
+          <div className="loading-content">
+            <div className="loading-dot" />
+            <span>Processing...</span>
+          </div>
         </div>
       )}
     </div>

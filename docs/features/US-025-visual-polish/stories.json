@@ -1,0 +1,27 @@
+{
+  "id": "US-025",
+  "title": "HeadlessChat Visual Polish",
+  "type": "feature",
+  "description": "Make the HeadlessChat UI look polished and match the design references",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Message avatars - circular icons with U/C initials", "done": false},
+    {"item": "Edit diff with line numbers column", "done": false},
+    {"item": "Todo list with circular checkboxes (not emoji)", "done": false},
+    {"item": "Priority badges - red 'high', yellow 'medium' pills", "done": false},
+    {"item": "Read tool shows line count '(27 lines)'", "done": false},
+    {"item": "Read tool has 'Expand' button", "done": false},
+    {"item": "Token count display 'Tokens: X in, Y out'", "done": false},
+    {"item": "Processing indicator with animated dot", "done": false}
+  ],
+  "acceptanceCriteria": [
+    {"item": "UI matches design-reference images in imgs/", "done": false},
+    {"item": "All visual elements are polished with hover states", "done": false}
+  ],
+  "files": [
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/components/HeadlessChat/ToolCall.tsx",
+    "src/components/HeadlessChat/TodoList.tsx",
+    "src/components/HeadlessChat/styles.css"
+  ]
+}
