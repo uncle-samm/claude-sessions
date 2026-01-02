@@ -21,6 +21,7 @@ tauri-plugin-dialog = "2.4.2"
 tauri-plugin-store = "2.4.1"
 tauri-plugin-fs = "2"
 tauri-plugin-mcp-bridge = "0.4.0"
+tauri-plugin-shell = "2"
 
 # SQLite database
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -35,4 +36,3 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 once_cell = "1.19"
 dirs = "5"
-

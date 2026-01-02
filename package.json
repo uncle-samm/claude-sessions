@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:sidecar": "cd scripts/agent-service && npm run build && npx pkg dist/index.cjs --target node18-macos-arm64 --output ../../src-tauri/binaries/agent-service-aarch64-apple-darwin",
+    "build:sidecar:all": "cd scripts/agent-service && npm run build:all"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

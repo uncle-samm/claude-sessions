@@ -1,0 +1,178 @@
+{
+  "id": "US-026",
+  "title": "Replace Headless Mode with Claude Agent SDK (Sidecar)",
+  "type": "feature",
+  "status": "in_progress",
+  "description": "Replace Claude CLI-based headless mode with the official Claude Agent SDK, packaged as a self-contained sidecar binary for distribution",
+  "requirements": [
+    {"item": "Agent SDK packaged as sidecar binary using pkg", "done": true},
+    {"item": "Well-defined JSON protocol between Rust and sidecar", "done": true},
+    {"item": "Rust backend spawns sidecar via Command::sidecar()", "done": true},
+    {"item": "Session resume works via SDK options.resume", "done": false},
+    {"item": "MCP servers configured via SDK mcpServers option", "done": false},
+    {"item": "Cross-platform builds (macOS arm64/x64, Windows, Linux)", "done": false},
+    {"item": "Permission mode UI (ask/acceptEdits/bypassPermissions)", "done": false},
+    {"item": "Error handling with user-friendly messages", "done": false}
+  ],
+  "subStories": [
+    {
+      "id": "US-026.1",
+      "title": "Agent SDK Sidecar Setup",
+      "status": "done",
+      "acceptanceCriteria": [
+        {"item": "scripts/agent-service/ project created with SDK dependency", "done": true},
+        {"item": "pkg configured to build standalone binaries", "done": true},
+        {"item": "Build script creates binaries for all target triples", "done": true},
+        {"item": "Binaries placed in src-tauri/binaries/ with correct naming", "done": true},
+        {"item": "tauri.conf.json configured with externalBin", "done": true},
+        {"item": "Shell plugin permissions configured in capabilities/default.json", "done": true}
+      ]
+    },
+    {
+      "id": "US-026.2",
+      "title": "Agent Service Protocol",
+      "status": "done",
+      "acceptanceCriteria": [
+        {"item": "Input: JSON args via command line", "done": true},
+        {"item": "Output: Newline-delimited JSON messages to stdout", "done": true},
+        {"item": "Error output: JSON error objects to stderr", "done": true},
+        {"item": "Message types match existing ClaudeMessage format", "done": true},
+        {"item": "Session ID returned on init for resumption", "done": true},
+        {"item": "Graceful shutdown on SIGTERM/SIGINT", "done": true}
+      ]
+    },
+    {
+      "id": "US-026.3",
+      "title": "Rust Sidecar Integration",
+      "status": "done",
+      "acceptanceCriteria": [
+        {"item": "claude_headless.rs updated to use Command::sidecar()", "done": true},
+        {"item": "Process registry tracks sidecar processes per session", "done": true},
+        {"item": "stdout parsed and emitted as claude-message events", "done": true},
+        {"item": "stderr captured and emitted as claude-stderr events", "done": true},
+        {"item": "Process exit emitted as claude-done event", "done": true},
+        {"item": "Graceful termination on session stop", "done": true}
+      ]
+    },
+    {
+      "id": "US-026.4",
+      "title": "Session Management via SDK",
+      "status": "pending",
+      "acceptanceCriteria": [
+        {"item": "SDK session ID stored in local database", "done": false},
+        {"item": "Resume works via options.resume in SDK", "done": false},
+        {"item": "Session history loads from Convex on app start", "done": false},
+        {"item": "New messages sync to Convex in real-time", "done": false},
+        {"item": "Session ID format compatible or migrated", "done": false}
+      ]
+    },
+    {
+      "id": "US-026.5",
+      "title": "MCP Integration via SDK",
+      "status": "pending",
+      "acceptanceCriteria": [
+        {"item": "SDK mcpServers option configured with claude-sessions bridge", "done": false},
+        {"item": "Existing mcp-bridge.cjs works when spawned by SDK", "done": false},
+        {"item": "notify_ready tool works end-to-end", "done": false},
+        {"item": "get_pending_comments / reply_to_comment work", "done": false},
+        {"item": "No regression in MCP functionality", "done": false}
+      ]
+    },
+    {
+      "id": "US-026.6",
+      "title": "Build Pipeline",
+      "status": "in_progress",
+      "acceptanceCriteria": [
+        {"item": "npm script build:sidecar compiles for current platform", "done": true},
+        {"item": "npm script build:sidecar:all compiles for all targets", "done": true},
+        {"item": "Binaries named correctly: agent-service-{target-triple}[.exe]", "done": true},
+        {"item": "Tauri build includes sidecar binaries", "done": true},
+        {"item": "CI/CD builds all platform variants", "done": false}
+      ]
+    },
+    {
+      "id": "US-026.7",
+      "title": "Permission Mode UI",
+      "status": "pending",
+      "acceptanceCriteria": [
+        {"item": "UI toggle in session header or settings", "done": false},
+        {"item": "Modes: Ask for approval / Auto-approve edits / Full auto", "done": false},
+        {"item": "Mode persisted per session", "done": false},
+        {"item": "Mode passed to SDK via permissionMode option", "done": false}
+      ]
+    },
+    {
+      "id": "US-026.8",
+      "title": "Error Handling & Recovery",
+      "status": "pending",
+      "acceptanceCriteria": [
+        {"item": "Sidecar crash shows user-friendly error", "done": false},
+        {"item": "SDK errors (auth, rate limit) displayed clearly", "done": false},
+        {"item": "Network errors handled gracefully", "done": false},
+        {"item": "Retry mechanism for transient failures", "done": false},
+        {"item": "Logs available for debugging", "done": false}
+      ]
+    }
+  ],
+  "e2eTests": [
+    {
+      "name": "Start session via SDK sidecar",
+      "steps": [
+        "Open app (ensure no Node.js required)",
+        "Create new session",
+        "Send a message",
+        "Verify sidecar process spawned",
+        "Verify message streams to UI",
+        "Verify tool calls render correctly"
+      ],
+      "done": false
+    },
+    {
+      "name": "Resume session",
+      "steps": [
+        "Start a session and send messages",
+        "Note the session ID from init message",
+        "Close and reopen app",
+        "Open same session",
+        "Send follow-up message",
+        "Verify context preserved (Claude remembers previous messages)"
+      ],
+      "done": false
+    },
+    {
+      "name": "MCP tools work",
+      "steps": [
+        "Start session",
+        "Ask Claude to use notify_ready tool",
+        "Verify inbox message received",
+        "Create a diff with comments",
+        "Ask Claude to check comments",
+        "Verify get_pending_comments works"
+      ],
+      "done": false
+    },
+    {
+      "name": "Permission modes",
+      "steps": [
+        "Start session in default mode",
+        "Verify Claude asks for approval on edits",
+        "Switch to acceptEdits mode",
+        "Verify edits auto-approved",
+        "Switch to bypassPermissions",
+        "Verify all actions auto-approved"
+      ],
+      "done": false
+    }
+  ],
+  "files": [
+    "scripts/agent-service/package.json",
+    "scripts/agent-service/src/index.ts",
+    "scripts/agent-service/tsconfig.json",
+    "scripts/build-sidecar.js",
+    "src-tauri/binaries/",
+    "src-tauri/tauri.conf.json",
+    "src-tauri/capabilities/default.json",
+    "src-tauri/src/claude_headless.rs",
+    "package.json"
+  ]
+}

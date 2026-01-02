@@ -1,6 +1,6 @@
 //! Headless Claude Code process management
 //!
-//! Spawns Claude CLI in headless mode with JSON streaming output,
+//! Spawns Claude Agent SDK sidecar with JSON streaming output,
 //! parses the JSON messages, and emits Tauri events to the frontend.
 
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
+use tauri_plugin_shell::ShellExt;
 use tokio::sync::mpsc;
 
 /// Registry of running Claude processes, keyed by session_id
@@ -147,7 +148,10 @@ pub async fn start_claude_headless(
     {
         let processes = PROCESSES.lock().map_err(|e| e.to_string())?;
         if processes.contains_key(&session_id) {
-            return Err(format!("Claude process already running for session {}", session_id));
+            return Err(format!(
+                "Claude process already running for session {}",
+                session_id
+            ));
         }
     }
 
@@ -176,7 +180,11 @@ pub async fn start_claude_headless(
     // Add the prompt as a positional argument at the end
     cmd.arg(&prompt);
 
-    println!("[ClaudeHeadless] Running: {} --print --output-format stream-json --verbose '{}'", claude_path, &prompt[..prompt.len().min(50)]);
+    println!(
+        "[ClaudeHeadless] Running: {} --print --output-format stream-json --verbose '{}'",
+        claude_path,
+        &prompt[..prompt.len().min(50)]
+    );
 
     // Inherit all environment variables from parent, then override specific ones
     cmd.current_dir(&cwd)
@@ -189,8 +197,13 @@ pub async fn start_claude_headless(
         .env("LC_ALL", "en_US.UTF-8");
 
     // Spawn process
-    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn claude: {}", e))?;
-    println!("[ClaudeHeadless] Spawned process with PID: {:?}", child.id());
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn claude: {}", e))?;
+    println!(
+        "[ClaudeHeadless] Spawned process with PID: {:?}",
+        child.id()
+    );
 
     // Take stdin - we'll drop it immediately for --print mode
     // (Claude doesn't need stdin in print mode)
@@ -234,9 +247,12 @@ pub async fn start_claude_headless(
                 Ok(line) if line.is_empty() => {
                     println!("[ClaudeHeadless] Skipping empty line");
                     continue;
-                },
+                }
                 Ok(line) => {
-                    println!("[ClaudeHeadless] Got line: {}", &line[..line.len().min(200)]);
+                    println!(
+                        "[ClaudeHeadless] Got line: {}",
+                        &line[..line.len().min(200)]
+                    );
                     // Parse JSON line
                     match serde_json::from_str::<ClaudeMessage>(&line) {
                         Ok(msg) => {
@@ -252,7 +268,10 @@ pub async fn start_claude_headless(
                         }
                         Err(e) => {
                             // Log parse error but continue
-                            eprintln!("[ClaudeHeadless] JSON parse error: {} for line: {}", e, line);
+                            eprintln!(
+                                "[ClaudeHeadless] JSON parse error: {} for line: {}",
+                                e, line
+                            );
                         }
                     }
                 }
@@ -316,6 +335,190 @@ pub async fn start_claude_headless(
     Ok(())
 }
 
+/// Input for the agent-service sidecar
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentServiceInput {
+    action: String,
+    prompt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session_id: Option<String>,
+    cwd: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    claude_code_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    options: Option<AgentServiceOptions>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentServiceOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    allowed_tools: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    permission_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mcp_servers: Option<serde_json::Value>,
+}
+
+/// Start a Claude session using the Agent SDK sidecar
+#[tauri::command]
+pub async fn start_claude_agent(
+    app: AppHandle,
+    session_id: String,
+    prompt: String,
+    cwd: String,
+    resume_id: Option<String>,
+    permission_mode: Option<String>,
+) -> Result<(), String> {
+    // Check if process already running for this session
+    {
+        let processes = PROCESSES.lock().map_err(|e| e.to_string())?;
+        if processes.contains_key(&session_id) {
+            return Err(format!(
+                "Claude process already running for session {}",
+                session_id
+            ));
+        }
+    }
+
+    // Find Claude Code CLI path
+    let claude_code_path = if std::path::Path::new("/opt/homebrew/bin/claude").exists() {
+        Some("/opt/homebrew/bin/claude".to_string())
+    } else if std::path::Path::new("/usr/local/bin/claude").exists() {
+        Some("/usr/local/bin/claude".to_string())
+    } else {
+        None // SDK will try to find it
+    };
+
+    // Build input JSON for the sidecar
+    let input = AgentServiceInput {
+        action: if resume_id.is_some() {
+            "resume".to_string()
+        } else {
+            "query".to_string()
+        },
+        prompt,
+        session_id: resume_id,
+        cwd: cwd.clone(),
+        claude_code_path,
+        options: Some(AgentServiceOptions {
+            allowed_tools: None, // Use defaults
+            permission_mode,
+            mcp_servers: None, // TODO: Add MCP config
+        }),
+    };
+
+    let input_json =
+        serde_json::to_string(&input).map_err(|e| format!("Failed to serialize input: {}", e))?;
+
+    println!(
+        "[ClaudeAgent] Starting sidecar with input: {}",
+        &input_json[..input_json.len().min(200)]
+    );
+
+    // Get the shell plugin to spawn sidecar
+    let shell = app.shell();
+
+    // Spawn the sidecar
+    let (mut rx, _child) = shell
+        .sidecar("agent-service")
+        .map_err(|e| format!("Failed to create sidecar command: {}", e))?
+        .args([&input_json])
+        .spawn()
+        .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
+
+    // Create channel for sending input (for future multi-turn support)
+    let (stdin_tx, _stdin_rx) = mpsc::unbounded_channel::<String>();
+
+    // Store process reference
+    {
+        let mut processes = PROCESSES.lock().map_err(|e| e.to_string())?;
+        processes.insert(session_id.clone(), ClaudeProcess { stdin_tx });
+    }
+
+    let session_id_clone = session_id.clone();
+    let app_clone = app.clone();
+
+    // Spawn task to handle sidecar events
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_shell::process::CommandEvent;
+
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    let line_str = String::from_utf8_lossy(&line);
+                    if line_str.is_empty() {
+                        continue;
+                    }
+                    println!(
+                        "[ClaudeAgent] stdout: {}",
+                        &line_str[..line_str.len().min(200)]
+                    );
+
+                    // Parse JSON line
+                    match serde_json::from_str::<ClaudeMessage>(&line_str) {
+                        Ok(msg) => {
+                            let event = ClaudeEvent {
+                                session_id: session_id_clone.clone(),
+                                message: msg,
+                            };
+                            if let Err(e) = app_clone.emit("claude-message", &event) {
+                                eprintln!("[ClaudeAgent] Failed to emit event: {}", e);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "[ClaudeAgent] JSON parse error: {} for line: {}",
+                                e, line_str
+                            );
+                        }
+                    }
+                }
+                CommandEvent::Stderr(line) => {
+                    let line_str = String::from_utf8_lossy(&line);
+                    if line_str.is_empty() {
+                        continue;
+                    }
+                    eprintln!("[ClaudeAgent] stderr: {}", line_str);
+
+                    let error = ClaudeError {
+                        session_id: session_id_clone.clone(),
+                        error: line_str.to_string(),
+                    };
+                    if let Err(e) = app_clone.emit("claude-stderr", &error) {
+                        eprintln!("[ClaudeAgent] Failed to emit stderr event: {}", e);
+                    }
+                }
+                CommandEvent::Terminated(payload) => {
+                    println!(
+                        "[ClaudeAgent] Process terminated with code: {:?}",
+                        payload.code
+                    );
+
+                    // Remove from registry
+                    if let Ok(mut processes) = PROCESSES.lock() {
+                        processes.remove(&session_id_clone);
+                    }
+
+                    // Emit done event
+                    let done = ClaudeDone {
+                        session_id: session_id_clone.clone(),
+                        exit_code: payload.code,
+                    };
+                    if let Err(e) = app_clone.emit("claude-done", &done) {
+                        eprintln!("[ClaudeAgent] Failed to emit done event: {}", e);
+                    }
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    Ok(())
+}
+
 /// Send input to a running Claude session (for multi-turn conversations)
 #[tauri::command]
 pub async fn send_claude_input(session_id: String, input: String) -> Result<(), String> {
@@ -342,7 +545,10 @@ pub async fn stop_claude_session(session_id: String) -> Result<(), String> {
         // Dropping the process will close stdin, which should terminate claude
         Ok(())
     } else {
-        Err(format!("No running Claude process for session {}", session_id))
+        Err(format!(
+            "No running Claude process for session {}",
+            session_id
+        ))
     }
 }
 

@@ -1,0 +1,31 @@
+{
+  "name": "agent-service",
+  "version": "1.0.0",
+  "description": "Claude Agent SDK sidecar for claude-sessions",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.cjs --format=cjs",
+    "build:binary": "npm run build && pkg dist/index.cjs --target node18 --output agent-service",
+    "build:all": "npm run build && node build-all.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.0",
+    "pkg": "^5.8.1",
+    "typescript": "^5.0.0"
+  },
+  "pkg": {
+    "targets": [
+      "node18-macos-arm64",
+      "node18-macos-x64",
+      "node18-win-x64",
+      "node18-linux-x64"
+    ],
+    "outputPath": "../../src-tauri/binaries"
+  }
+}

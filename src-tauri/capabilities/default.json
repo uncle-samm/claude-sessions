@@ -11,6 +11,16 @@
     "fs:default",
     "fs:read-all",
     "fs:allow-exists",
-    "fs:scope-home-recursive"
+    "fs:scope-home-recursive",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/agent-service",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    }
   ]
 }

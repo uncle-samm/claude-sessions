@@ -91,7 +91,12 @@ fn get_workspaces() -> Result<Vec<WorkspaceData>, String> {
 }
 
 #[tauri::command]
-fn create_workspace(name: String, folder: String, script_path: Option<String>, origin_branch: Option<String>) -> Result<WorkspaceData, String> {
+fn create_workspace(
+    name: String,
+    folder: String,
+    script_path: Option<String>,
+    origin_branch: Option<String>,
+) -> Result<WorkspaceData, String> {
     let origin_branch = origin_branch.unwrap_or_else(|| "main".to_string());
     let workspace = db::Workspace {
         id: uuid::Uuid::new_v4().to_string(),
@@ -287,8 +292,11 @@ fn configure_worktree(worktree_path: String, session_id: String) -> Result<(), S
         });
     }
 
-    std::fs::write(&mcp_json_path, serde_json::to_string_pretty(&mcp_config).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        &mcp_json_path,
+        serde_json::to_string_pretty(&mcp_config).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
 
     // Configure .claude/settings.local.json
     let claude_dir = path.join(".claude");
@@ -297,7 +305,8 @@ fn configure_worktree(worktree_path: String, session_id: String) -> Result<(), S
     let settings_path = claude_dir.join("settings.local.json");
     let mut settings: serde_json::Value = if settings_path.exists() {
         let content = std::fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({"permissions": {"allow": []}}))
+        serde_json::from_str(&content)
+            .unwrap_or_else(|_| serde_json::json!({"permissions": {"allow": []}}))
     } else {
         serde_json::json!({"permissions": {"allow": []}})
     };
@@ -334,8 +343,11 @@ fn configure_worktree(worktree_path: String, session_id: String) -> Result<(), S
         settings["enabledMcpjsonServers"] = serde_json::json!(["claude-sessions"]);
     }
 
-    std::fs::write(&settings_path, serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    std::fs::write(
+        &settings_path,
+        serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
 
     println!("[Config] Configured worktree at: {}", worktree_path);
     Ok(())
@@ -343,12 +355,19 @@ fn configure_worktree(worktree_path: String, session_id: String) -> Result<(), S
 
 // Git diff commands
 #[tauri::command]
-fn get_diff_summary(worktree_path: String, base_branch: String) -> Result<git::DiffSummary, String> {
+fn get_diff_summary(
+    worktree_path: String,
+    base_branch: String,
+) -> Result<git::DiffSummary, String> {
     git::get_diff_summary(&worktree_path, &base_branch)
 }
 
 #[tauri::command]
-fn get_file_diff(worktree_path: String, file_path: String, base_branch: String) -> Result<git::FileDiff, String> {
+fn get_file_diff(
+    worktree_path: String,
+    file_path: String,
+    base_branch: String,
+) -> Result<git::FileDiff, String> {
     git::get_file_diff(&worktree_path, &file_path, &base_branch)
 }
 
@@ -421,7 +440,11 @@ fn get_open_comments_for_session(session_id: String) -> Result<Vec<DiffCommentDa
 }
 
 #[tauri::command]
-fn reply_to_comment(parent_id: String, author: String, content: String) -> Result<DiffCommentData, String> {
+fn reply_to_comment(
+    parent_id: String,
+    author: String,
+    content: String,
+) -> Result<DiffCommentData, String> {
     db::reply_to_comment(&parent_id, &author, &content)
         .map(comment_to_data)
         .map_err(|e| e.to_string())
@@ -449,6 +472,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             get_workspaces,
             create_workspace,
@@ -481,12 +505,14 @@ pub fn run() {
             reply_to_comment,
             resolve_comment,
             delete_comment,
-            // Headless Claude commands
+            // Headless Claude commands (legacy CLI)
             claude_headless::start_claude_headless,
             claude_headless::send_claude_input,
             claude_headless::stop_claude_session,
             claude_headless::is_claude_running,
             claude_headless::get_running_claude_sessions,
+            // Agent SDK sidecar command (new)
+            claude_headless::start_claude_agent,
             // Session persistence commands
             claude_sessions::load_claude_session_messages,
             claude_sessions::list_claude_sessions,
