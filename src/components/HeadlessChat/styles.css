@@ -1468,3 +1468,128 @@
   color: #fbbf24;
   font-weight: 500;
 }
+
+/* Additional Tool Badge Variants */
+.tool-badge-model {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+.tool-badge-bg {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.tool-badge-nonblock {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.tool-badge-timeout {
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+}
+
+.tool-badge-cell {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+.tool-badge-swarm {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+/* Task Resume Info */
+.tool-task-resume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #a78bfa;
+}
+
+/* Task/Output Waiting States */
+.tool-task-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #111;
+  color: #888;
+  font-size: 12px;
+}
+
+.waiting-indicator {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* WebSearch Domain Filters */
+.tool-search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #111;
+  border-top: 1px solid #1a1a1a;
+}
+
+.tool-filter {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.tool-filter-allow {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.tool-filter-block {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+/* AskUserQuestion Enhanced Styles */
+.tool-ask-options {
+  padding: 8px 14px;
+  background: #111;
+  border-top: 1px solid #1a1a1a;
+}
+
+.tool-ask-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 4px 0;
+  background: #1a1a1a;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.option-number {
+  color: #fbbf24;
+  font-weight: 600;
+  min-width: 20px;
+}
+
+.option-text {
+  color: #ddd;
+}
+
+.tool-ask-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(251, 191, 36, 0.1);
+  border-top: 1px solid rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  font-size: 12px;
+}

@@ -249,19 +249,30 @@ function TaskTool({ input, result }: { input: Record<string, unknown>; result?: 
   const description = input.description as string || "Task";
   const prompt = input.prompt as string || "";
   const subagentType = input.subagent_type as string;
+  const model = input.model as string | undefined;
+  const runInBackground = input.run_in_background as boolean | undefined;
+  const resumeId = input.resume as string | undefined;
   const hasResult = result !== undefined;
 
   return (
     <div className="tool-task">
-      <ToolResultHeader label="Task" hasResult={hasResult} />
+      <ToolResultHeader label={runInBackground ? "Background Task" : "Task"} hasResult={hasResult} />
       <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
         <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">🤖</span>
+        <span className="tool-icon">{runInBackground ? "🔄" : "🤖"}</span>
         <span className="tool-task-description">{description}</span>
         {subagentType && <span className="tool-badge">{subagentType}</span>}
+        {model && <span className="tool-badge tool-badge-model">{model}</span>}
+        {runInBackground && <span className="tool-badge tool-badge-bg">background</span>}
       </div>
       {expanded && (
         <div className="tool-task-content">
+          {resumeId && (
+            <div className="tool-task-resume">
+              <span className="tool-icon">↩️</span>
+              <span>Resuming agent: {resumeId.slice(0, 12)}...</span>
+            </div>
+          )}
           {prompt && (
             <div className="tool-task-prompt">
               <pre>{prompt.length > 500 ? prompt.slice(0, 500) + "..." : prompt}</pre>
@@ -282,6 +293,8 @@ function TaskTool({ input, result }: { input: Record<string, unknown>; result?: 
 // TaskOutput tool display
 function TaskOutputTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
   const taskId = input.task_id as string || "";
+  const blocking = input.block !== false; // defaults to true
+  const timeout = input.timeout as number | undefined;
   const hasResult = result !== undefined;
 
   return (
@@ -290,7 +303,15 @@ function TaskOutputTool({ input, result }: { input: Record<string, unknown>; res
       <div className="tool-header-row">
         <span className="tool-icon">📋</span>
         <span className="tool-task-id">Task: {taskId.slice(0, 8)}...</span>
+        {!blocking && <span className="tool-badge tool-badge-nonblock">non-blocking</span>}
+        {timeout && <span className="tool-badge tool-badge-timeout">{timeout}ms</span>}
       </div>
+      {!hasResult && blocking && (
+        <div className="tool-task-waiting">
+          <span className="waiting-indicator">⏳</span>
+          <span>Waiting for task to complete...</span>
+        </div>
+      )}
       {hasResult && (
         <div className="tool-output">
           <pre><code>{typeof result === "string" ? result : JSON.stringify(result, null, 2)}</code></pre>
@@ -343,6 +364,8 @@ function WebFetchTool({ input, result }: { input: Record<string, unknown>; resul
 function WebSearchTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
   const [expanded, setExpanded] = useState(false);
   const query = input.query as string || "";
+  const allowedDomains = input.allowed_domains as string[] | undefined;
+  const blockedDomains = input.blocked_domains as string[] | undefined;
   const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
   const hasResult = result !== undefined;
 
@@ -354,6 +377,16 @@ function WebSearchTool({ input, result }: { input: Record<string, unknown>; resu
         <span className="tool-icon">🔍</span>
         <span className="tool-search-query">"{query}"</span>
       </div>
+      {(allowedDomains || blockedDomains) && (
+        <div className="tool-search-filters">
+          {allowedDomains && allowedDomains.length > 0 && (
+            <span className="tool-filter tool-filter-allow">✓ {allowedDomains.join(", ")}</span>
+          )}
+          {blockedDomains && blockedDomains.length > 0 && (
+            <span className="tool-filter tool-filter-block">✗ {blockedDomains.join(", ")}</span>
+          )}
+        </div>
+      )}
       {expanded && content && (
         <div className="tool-output">
           <pre><code>{content.length > 1000 ? content.slice(0, 1000) + "..." : content}</code></pre>
@@ -367,6 +400,7 @@ function WebSearchTool({ input, result }: { input: Record<string, unknown>; resu
 function NotebookEditTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
   const [expanded, setExpanded] = useState(true);
   const notebookPath = input.notebook_path as string || "";
+  const cellId = input.cell_id as string | undefined;
   const cellType = input.cell_type as string || "code";
   const editMode = input.edit_mode as string || "replace";
   const newSource = input.new_source as string || "";
@@ -381,9 +415,10 @@ function NotebookEditTool({ input, result }: { input: Record<string, unknown>; r
         <span className="tool-path-text">{formatPath(notebookPath)}</span>
         <span className="tool-badge">{editMode}</span>
         <span className="tool-badge">{cellType}</span>
+        {cellId && <span className="tool-badge tool-badge-cell">cell: {cellId}</span>}
       </div>
       {expanded && newSource && (
-        <pre className="tool-content lang-python">
+        <pre className={`tool-content lang-${cellType === "markdown" ? "markdown" : "python"}`}>
           <code>{newSource}</code>
         </pre>
       )}
@@ -391,18 +426,35 @@ function NotebookEditTool({ input, result }: { input: Record<string, unknown>; r
   );
 }
 
-// AskUserQuestion tool display
+// AskUserQuestion tool display - interactive question with optional choices
 function AskUserQuestionTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
   const question = input.question as string || "";
+  const options = input.options as string[] | undefined;
   const hasResult = result !== undefined;
 
   return (
     <div className="tool-ask-user">
-      <ToolResultHeader label="Question" hasResult={hasResult} />
+      <ToolResultHeader label={hasResult ? "Question Answered" : "Waiting for Answer"} hasResult={hasResult} />
       <div className="tool-ask-content">
         <span className="tool-icon">❓</span>
         <span className="tool-question">{question}</span>
       </div>
+      {options && options.length > 0 && !hasResult && (
+        <div className="tool-ask-options">
+          {options.map((opt, i) => (
+            <div key={i} className="tool-ask-option">
+              <span className="option-number">{i + 1}.</span>
+              <span className="option-text">{opt}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {!hasResult && (
+        <div className="tool-ask-waiting">
+          <span className="waiting-indicator">⏳</span>
+          <span>Waiting for user response...</span>
+        </div>
+      )}
       {hasResult && (
         <div className="tool-answer">
           <span className="tool-icon">💬</span>
@@ -429,8 +481,10 @@ function EnterPlanModeTool({ result }: { result?: unknown }) {
 }
 
 // ExitPlanMode tool display with markdown plan
-function ExitPlanModeTool({ result }: { result?: unknown }) {
+function ExitPlanModeTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
   const [expanded, setExpanded] = useState(true);
+  const launchSwarm = input.launchSwarm as boolean | undefined;
+  const teammateCount = input.teammateCount as number | undefined;
   const planContent = typeof result === "string" ? result : "";
   const hasResult = result !== undefined;
 
@@ -441,6 +495,11 @@ function ExitPlanModeTool({ result }: { result?: unknown }) {
         <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
         <span className="tool-icon">✅</span>
         <span>Plan ready for implementation</span>
+        {launchSwarm && (
+          <span className="tool-badge tool-badge-swarm">
+            🐝 Swarm{teammateCount ? ` (${teammateCount} agents)` : ""}
+          </span>
+        )}
       </div>
       {expanded && planContent && (
         <div className="tool-plan-content">
@@ -559,7 +618,7 @@ export function ToolCall({ tool, result, isError }: ToolCallProps) {
     case "EnterPlanMode":
       return <EnterPlanModeTool result={result} />;
     case "ExitPlanMode":
-      return <ExitPlanModeTool result={result} />;
+      return <ExitPlanModeTool input={tool.input} result={result} />;
     case "KillShell":
       return <KillShellTool input={tool.input} result={result} />;
     case "Skill":
