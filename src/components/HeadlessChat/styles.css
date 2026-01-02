@@ -3,8 +3,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1a1a1a;
-  color: #f5f5f5;
+  background: #0d0d0d;
+  color: #e5e5e5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Header */
@@ -13,8 +14,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #252525;
-  border-bottom: 1px solid #333;
+  background: #111111;
+  border-bottom: 1px solid #222;
 }
 
 .header-title {
@@ -86,10 +87,10 @@
 .message-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .message-list-empty {
@@ -206,14 +207,15 @@
 }
 
 .message-body {
-  background: #252525;
+  background: #161616;
   border-radius: 12px;
-  padding: 12px 16px;
-  line-height: 1.6;
+  padding: 14px 18px;
+  line-height: 1.7;
+  font-size: 14px;
 }
 
 .chat-message-user .message-body {
-  background: #2563eb;
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
   color: white;
 }
 
@@ -250,7 +252,7 @@
 
 /* Tool Calls */
 .message-tool {
-  margin: 8px 0;
+  margin: 12px 0;
 }
 
 .tool-read,
@@ -260,10 +262,32 @@
 .tool-glob,
 .tool-grep,
 .tool-generic {
-  background: #1e1e1e;
-  border: 1px solid #333;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* Tool result header (Edit Result, Read Result, etc.) */
+.tool-result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #111;
+  border-bottom: 1px solid #1a1a1a;
+  font-size: 13px;
+}
+
+.tool-result-icon {
+  width: 16px;
+  height: 16px;
+  color: #4ade80;
+}
+
+.tool-result-label {
+  color: #888;
+  font-weight: 500;
 }
 
 .tool-file-path,
@@ -271,9 +295,9 @@
 .tool-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: #252525;
+  gap: 10px;
+  padding: 10px 14px;
+  background: transparent;
   cursor: pointer;
   font-size: 13px;
 }
@@ -281,7 +305,7 @@
 .tool-file-path:hover,
 .tool-bash-header:hover,
 .tool-header:hover {
-  background: #2a2a2a;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .tool-chevron {
@@ -588,11 +612,11 @@
 .loading-content {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #252525;
+  gap: 10px;
+  padding: 14px 18px;
+  background: #111;
   border-radius: 12px;
-  color: #888;
+  color: #666;
   font-size: 13px;
 }
 
@@ -621,9 +645,9 @@
 
 /* Input Area */
 .input-area {
-  padding: 12px 16px;
-  border-top: 1px solid #333;
-  background: #1e1e1e;
+  padding: 16px 20px;
+  border-top: 1px solid #1a1a1a;
+  background: #0d0d0d;
 }
 
 .input-container {
@@ -634,11 +658,11 @@
 
 .input-textarea {
   flex: 1;
-  background: #252525;
-  border: 1px solid #444;
+  background: #111;
+  border: 1px solid #222;
   border-radius: 8px;
-  padding: 10px 14px;
-  color: #f5f5f5;
+  padding: 12px 16px;
+  color: #e5e5e5;
   font-size: 14px;
   font-family: inherit;
   resize: none;
@@ -746,10 +770,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 16px;
-  background: #1a1a1a;
-  border-top: 1px solid #2a2a2a;
-  min-height: 24px;
+  padding: 6px 20px;
+  background: #0a0a0a;
+  border-top: 1px solid #151515;
+  min-height: 28px;
 }
 
 .status-badges {
@@ -772,10 +796,10 @@
 
 /* Todo Panel */
 .todo-panel {
-  background: #1e1e1e;
-  border-top: 1px solid #333;
-  padding: 12px 16px;
-  max-height: 200px;
+  background: #0a0a0a;
+  border-top: 1px solid #1a1a1a;
+  padding: 16px 20px;
+  max-height: 280px;
   overflow-y: auto;
 }
 
@@ -852,15 +876,26 @@
 .todo-items {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
 }
 
 .todo-item {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  font-size: 13px;
+  border-bottom: 1px solid #151515;
+}
+
+.todo-item:last-child {
+  border-bottom: none;
+}
+
+.todo-item-row {
+  display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 12px;
+  gap: 12px;
 }
 
 /* Circular todo checkbox */
@@ -943,26 +978,29 @@
   text-align: center;
 }
 
-/* Priority badges (for future use) */
+/* Priority badges - display below todo text */
 .priority-badge {
-  padding: 2px 6px;
+  display: inline-block;
+  padding: 3px 10px;
   border-radius: 4px;
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: lowercase;
+  margin-left: 30px;
 }
 
 .priority-badge.high {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.25);
   color: #f87171;
 }
 
 .priority-badge.medium {
-  background: rgba(251, 191, 36, 0.2);
+  background: rgba(251, 191, 36, 0.25);
   color: #fbbf24;
 }
 
 .priority-badge.low {
-  background: rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.25);
   color: #4ade80;
 }
 
@@ -1000,18 +1038,17 @@
 /* Expand button for Read tool */
 .expand-btn {
   margin-left: auto;
-  background: #333;
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 11px;
-  color: #888;
+  background: transparent;
+  border: none;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #666;
   cursor: pointer;
+  transition: color 0.15s;
 }
 
 .expand-btn:hover {
-  background: #444;
-  color: #fff;
+  color: #aaa;
 }
 
 /* Exit code badge for Bash */
@@ -1168,4 +1205,266 @@
 .header-sync-badge {
   font-size: 12px;
   margin-left: 4px;
+}
+
+/* ============================================
+   New Tool UI Components
+   ============================================ */
+
+/* Task Tool (sub-agent spawning) */
+.tool-task {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-task .tool-header-row {
+  cursor: pointer;
+}
+
+.tool-task-description {
+  color: #ddd;
+  font-weight: 500;
+}
+
+.tool-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  text-transform: lowercase;
+}
+
+.tool-task-content {
+  padding: 12px;
+  background: #111;
+}
+
+.tool-task-prompt {
+  margin-bottom: 8px;
+}
+
+.tool-task-prompt pre {
+  background: #1a1a1a;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #888;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* TaskOutput Tool */
+.tool-task-output {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-task-output .tool-header-row {
+  padding: 10px 14px;
+}
+
+.tool-task-id {
+  font-family: monospace;
+  font-size: 12px;
+  color: #888;
+}
+
+/* WebFetch Tool */
+.tool-webfetch {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-webfetch .tool-header-row {
+  cursor: pointer;
+}
+
+.tool-url {
+  color: #60a5fa;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.tool-webfetch-content {
+  padding: 12px;
+  background: #111;
+}
+
+.tool-url-full {
+  font-family: monospace;
+  font-size: 11px;
+  color: #60a5fa;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.tool-prompt {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+/* WebSearch Tool */
+.tool-websearch {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-websearch .tool-header-row {
+  cursor: pointer;
+}
+
+.tool-search-query {
+  color: #fbbf24;
+  font-style: italic;
+}
+
+/* NotebookEdit Tool */
+.tool-notebook {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-notebook .tool-header-row {
+  cursor: pointer;
+}
+
+.tool-notebook .tool-badge {
+  margin-left: 8px;
+}
+
+.tool-notebook .tool-badge:first-of-type {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.tool-notebook .tool-badge:last-of-type {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+/* AskUserQuestion Tool */
+.tool-ask-user {
+  background: #0a0a0a;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-ask-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(251, 191, 36, 0.05);
+}
+
+.tool-question {
+  color: #fbbf24;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.tool-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #111;
+  border-top: 1px solid #1a1a1a;
+  color: #4ade80;
+}
+
+/* Plan Mode Tools */
+.tool-plan-mode {
+  background: #0a0a0a;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-plan-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  color: #a78bfa;
+  cursor: pointer;
+}
+
+.tool-plan-header:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.tool-exit-plan {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.tool-exit-plan .tool-plan-header {
+  color: #4ade80;
+}
+
+.tool-exit-plan .tool-plan-header:hover {
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.tool-plan-content {
+  background: #111;
+  border-top: 1px solid #1a1a1a;
+}
+
+.tool-plan-content .tool-content {
+  max-height: 600px;
+}
+
+.tool-plan-content .tool-content.lang-markdown {
+  color: #e5e5e5;
+  line-height: 1.7;
+}
+
+/* KillShell Tool */
+.tool-kill-shell {
+  background: #0a0a0a;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-kill-shell .tool-header-row {
+  padding: 10px 14px;
+  color: #f87171;
+}
+
+/* Skill Tool */
+.tool-skill {
+  background: #0a0a0a;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-skill .tool-header-row {
+  padding: 10px 14px;
+}
+
+.tool-skill-name {
+  color: #fbbf24;
+  font-weight: 500;
 }

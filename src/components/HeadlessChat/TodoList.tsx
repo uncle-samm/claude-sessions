@@ -72,11 +72,15 @@ export function TodoList({ todos }: TodoListProps) {
       <div className="todo-items">
         {todos.map((todo, index) => (
           <div key={index} className={`todo-item ${getStatusClass(todo.status)}`}>
-            <TodoCheckbox status={todo.status} />
-            <span className={`todo-content ${todo.status === "completed" ? "strikethrough" : ""}`}>
-              {todo.content}
-            </span>
-            <PriorityBadge priority={todo.priority} />
+            <div className="todo-item-row">
+              <TodoCheckbox status={todo.status} />
+              <span className={`todo-content ${todo.status === "completed" ? "strikethrough" : ""}`}>
+                {todo.content}
+              </span>
+            </div>
+            {todo.priority && todo.priority !== "low" && (
+              <PriorityBadge priority={todo.priority} />
+            )}
           </div>
         ))}
       </div>

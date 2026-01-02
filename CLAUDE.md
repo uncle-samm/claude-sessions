@@ -1,15 +1,22 @@
 # Claude Sessions - Agent Manager
 
-## CRITICAL: Feature Development Workflow
+# ⛔ STOP - READ THIS FIRST
 
-**STOP! Before writing ANY code for a new feature:**
-1. Find next US-XXX ID in `userstories.json`
-2. Create `docs/features/US-XXX-feature-name/` folder
-3. Create `story.json` with requirements (see format below)
-4. Create `plan.md` with implementation steps
-5. THEN start coding
+## Before Writing ANY Code for a Feature OR Bug Fix:
 
-**DO NOT skip these steps. This is mandatory for every feature.**
+```
+1. List docs/features/ to find next US-XXX number
+2. Create folder: docs/features/US-XXX-feature-name/
+3. Create stories.json in that folder
+4. Create plan.md in that folder (copy from .claude/plans/ if exists)
+5. ONLY THEN start coding
+```
+
+**If you start coding without completing steps 1-4, STOP IMMEDIATELY and do them first.**
+
+This applies to BOTH new features AND bug fixes.
+
+**Even in Plan Mode:** When in plan mode, indicate that the first step of implementation will be to follow this workflow (create stories.json, etc.) before any code changes.
 
 ---
 
@@ -18,27 +25,27 @@
 ```
 claude-sessions/
 ├── docs/
-│   └── features/           # One folder per feature
+│   └── features/           # One folder per feature/bug fix
 │       └── US-XXX-name/
-│           ├── story.json  # User story with checkable requirements
-│           └── plan.md     # Implementation plan
+│           ├── stories.json  # Requirements with checkable items
+│           └── plan.md       # Implementation plan
 ├── notes/                   # Coding diary
 │   └── YYYY-MM-DD-topic.md # Daily notes with commit hashes
-├── userstories.json        # All user stories (legacy, still used)
 ├── design-reference.png    # UI reference image
-└── .claude/plans/          # Active plan file
+└── .claude/plans/          # Active plan file (temporary during planning)
 ```
 
 ## Feature Development Workflow
 
-### 1. Before Starting Any Feature
-1. Create folder: `docs/features/US-XXX-feature-name/`
-2. Create `story.json` with:
+### 1. Before Starting Any Feature or Bug Fix
+1. List `docs/features/` to find the next US-XXX number
+2. Create folder: `docs/features/US-XXX-feature-name/`
+3. Create `stories.json` with:
    - Requirements as checkable items: `{"item": "...", "done": false}`
    - E2E tests with clear steps
    - Acceptance criteria
-3. Create `plan.md` with implementation steps
-4. Search `notes/` for related fixes to avoid regressions
+4. Create `plan.md` with implementation steps
+5. Search `notes/` for related fixes to avoid regressions
 
 ### 2. During Implementation
 - Update todo list frequently
@@ -99,12 +106,13 @@ Then select with: `[data-testid="sync-btn"]`
    - Commit hash: `git rev-parse HEAD`
 3. Commit and push
 
-## Story.json Format
+## stories.json Format
 
 ```json
 {
   "id": "US-XXX",
-  "title": "Feature Name",
+  "title": "Feature Name or Fix: Bug Description",
+  "type": "feature|bug_fix",
   "status": "pending|in_progress|done",
   "requirements": [
     {"item": "Description", "done": false}

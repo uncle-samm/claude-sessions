@@ -1,0 +1,63 @@
+{
+  "id": "US-020",
+  "title": "Fix: Spinner Shows When Claude Not Working",
+  "type": "bug_fix",
+  "description": "Bug: Spinner shows on sessions where Claude isn't working because DB status is unreliable. Fix: Detect busy state from terminal output '(esc to interrupt)' instead of DB",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Add isClaudeBusy field to Session interface", "done": true},
+    {"item": "Add setClaudeBusy action to session store", "done": true},
+    {"item": "Detect '(esc to interrupt)' in terminal output to set busy=true", "done": true},
+    {"item": "Detect '> ' prompt in terminal output to set busy=false", "done": true},
+    {"item": "Update Sidebar to use isClaudeBusy instead of awaitingInput for spinner", "done": true},
+    {"item": "Default isClaudeBusy to false (no spinner until detected)", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "Spinner shows when Claude is working",
+      "steps": [
+        "Have active session with Claude at prompt",
+        "Send a task that takes time (e.g., 'read all files in src/')",
+        "Verify: '(esc to interrupt)' appears in terminal",
+        "Verify: Spinner appears in sidebar",
+        "Wait for Claude to finish",
+        "Verify: Spinner disappears when prompt returns"
+      ],
+      "done": false,
+      "notes": "Needs manual testing - HMR reset terminal state"
+    },
+    {
+      "name": "No spinner on idle/reactivated sessions",
+      "steps": [
+        "Have session that went idle overnight",
+        "Activate the session by clicking",
+        "Verify: No spinner shows (Claude is at prompt)",
+        "Verify: Spinner only appears when user sends a task"
+      ],
+      "done": true,
+      "notes": "Verified: No spinners on idle sessions after fix"
+    },
+    {
+      "name": "No spinner on app startup",
+      "steps": [
+        "Start app with existing sessions",
+        "Verify: No spinners showing on any session",
+        "Activate a session",
+        "Verify: Still no spinner (Claude at prompt)"
+      ],
+      "done": true,
+      "notes": "Verified via screenshot: No spinners on any session at startup"
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Spinner only shows when '(esc to interrupt)' is visible", "done": false},
+    {"item": "Spinner disappears when Claude returns to prompt", "done": false},
+    {"item": "No false spinners on idle/reactivated sessions", "done": false},
+    {"item": "No dependency on DB status for spinner logic", "done": false}
+  ],
+  "files": [
+    "src/store/sessions.ts",
+    "src/components/Terminal.tsx",
+    "src/components/Sidebar.tsx"
+  ]
+}

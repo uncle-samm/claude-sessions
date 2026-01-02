@@ -7,6 +7,25 @@ interface ToolCallProps {
   isError?: boolean;
 }
 
+// Checkmark icon component
+function CheckIcon() {
+  return (
+    <svg className="tool-result-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+// Tool result header component
+function ToolResultHeader({ label, hasResult }: { label: string; hasResult: boolean }) {
+  return (
+    <div className="tool-result-header">
+      {hasResult && <CheckIcon />}
+      <span className="tool-result-label">{label}</span>
+    </div>
+  );
+}
+
 // Format file path for display
 function formatPath(path: string): string {
   // Show just filename or last 2 path components
@@ -51,18 +70,19 @@ function ReadTool({ input, result }: { input: Record<string, unknown>; result?: 
   const filePath = input.file_path as string || "";
   const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
   const lineCount = countLines(content);
+  const hasResult = result !== undefined;
 
   return (
     <div className="tool-read">
+      <ToolResultHeader label="Read Result" hasResult={hasResult} />
       <div className="tool-header-row">
         <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
-          <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
           <span className="tool-icon file-icon" />
-          <span className="tool-path-text">{formatPath(filePath)}</span>
+          <span className="tool-path-text">{filePath}</span>
           <span className="tool-line-count">({lineCount} lines)</span>
         </div>
         <button className="expand-btn" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
-          {expanded ? "Collapse" : "Expand"}
+          {expanded ? "Collapse" : "> Expand"}
         </button>
       </div>
       {expanded && content && (
@@ -98,15 +118,16 @@ function EditTool({ input, result }: { input: Record<string, unknown>; result?: 
   const filePath = input.file_path as string || "";
   const oldString = input.old_string as string || "";
   const newString = input.new_string as string || "";
+  const hasResult = result !== undefined;
 
   return (
     <div className="tool-edit">
+      <ToolResultHeader label="Edit Result" hasResult={hasResult} />
       <div className="tool-header-row">
         <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
           <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-          <span className="tool-icon edit-icon" />
-          <span className="tool-path-text">{formatPath(filePath)}</span>
-          {result !== undefined && <span className="tool-status-ok">✓</span>}
+          <span className="tool-icon file-icon" />
+          <span className="tool-path-text">{filePath}</span>
         </div>
       </div>
       {expanded && (
@@ -125,14 +146,15 @@ function BashTool({ input, result, isError }: { input: Record<string, unknown>; 
   const command = input.command as string || "";
   const description = input.description as string;
   const output = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const hasResult = result !== undefined;
 
   return (
     <div className={`tool-bash ${isError ? "has-error" : ""}`}>
+      <ToolResultHeader label={isError ? "Bash Error" : "Bash Result"} hasResult={hasResult && !isError} />
       <div className="tool-bash-header" onClick={() => setExpanded(!expanded)}>
         <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">$</span>
+        <span className="tool-icon bash-icon">$</span>
         <span className="tool-command">{command.length > 60 ? command.slice(0, 60) + "..." : command}</span>
-        {isError && <span className="tool-status-error">✗</span>}
       </div>
       {expanded && (
         <div className="tool-bash-content">
@@ -221,6 +243,253 @@ function GrepTool({ input, result }: { input: Record<string, unknown>; result?: 
   );
 }
 
+// Task tool display (sub-agent spawning)
+function TaskTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const [expanded, setExpanded] = useState(true);
+  const description = input.description as string || "Task";
+  const prompt = input.prompt as string || "";
+  const subagentType = input.subagent_type as string;
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-task">
+      <ToolResultHeader label="Task" hasResult={hasResult} />
+      <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
+        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+        <span className="tool-icon">🤖</span>
+        <span className="tool-task-description">{description}</span>
+        {subagentType && <span className="tool-badge">{subagentType}</span>}
+      </div>
+      {expanded && (
+        <div className="tool-task-content">
+          {prompt && (
+            <div className="tool-task-prompt">
+              <pre>{prompt.length > 500 ? prompt.slice(0, 500) + "..." : prompt}</pre>
+            </div>
+          )}
+          {hasResult && (
+            <div className="tool-output">
+              <div className="tool-output-label">Result:</div>
+              <pre><code>{typeof result === "string" ? result : JSON.stringify(result, null, 2)}</code></pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// TaskOutput tool display
+function TaskOutputTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const taskId = input.task_id as string || "";
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-task-output">
+      <ToolResultHeader label="Task Output" hasResult={hasResult} />
+      <div className="tool-header-row">
+        <span className="tool-icon">📋</span>
+        <span className="tool-task-id">Task: {taskId.slice(0, 8)}...</span>
+      </div>
+      {hasResult && (
+        <div className="tool-output">
+          <pre><code>{typeof result === "string" ? result : JSON.stringify(result, null, 2)}</code></pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// WebFetch tool display
+function WebFetchTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const [expanded, setExpanded] = useState(false);
+  const url = input.url as string || "";
+  const prompt = input.prompt as string || "";
+  const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const hasResult = result !== undefined;
+
+  // Extract domain from URL
+  let domain = "";
+  try {
+    domain = new URL(url).hostname;
+  } catch {
+    domain = url;
+  }
+
+  return (
+    <div className="tool-webfetch">
+      <ToolResultHeader label="Web Fetch" hasResult={hasResult} />
+      <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
+        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+        <span className="tool-icon">🌐</span>
+        <span className="tool-url">{domain}</span>
+      </div>
+      {expanded && (
+        <div className="tool-webfetch-content">
+          <div className="tool-url-full">{url}</div>
+          {prompt && <div className="tool-prompt">Prompt: {prompt}</div>}
+          {content && (
+            <div className="tool-output">
+              <pre><code>{content.length > 1000 ? content.slice(0, 1000) + "..." : content}</code></pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// WebSearch tool display
+function WebSearchTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const [expanded, setExpanded] = useState(false);
+  const query = input.query as string || "";
+  const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-websearch">
+      <ToolResultHeader label="Web Search" hasResult={hasResult} />
+      <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
+        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+        <span className="tool-icon">🔍</span>
+        <span className="tool-search-query">"{query}"</span>
+      </div>
+      {expanded && content && (
+        <div className="tool-output">
+          <pre><code>{content.length > 1000 ? content.slice(0, 1000) + "..." : content}</code></pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// NotebookEdit tool display
+function NotebookEditTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const [expanded, setExpanded] = useState(true);
+  const notebookPath = input.notebook_path as string || "";
+  const cellType = input.cell_type as string || "code";
+  const editMode = input.edit_mode as string || "replace";
+  const newSource = input.new_source as string || "";
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-notebook">
+      <ToolResultHeader label="Notebook Edit" hasResult={hasResult} />
+      <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
+        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+        <span className="tool-icon">📓</span>
+        <span className="tool-path-text">{formatPath(notebookPath)}</span>
+        <span className="tool-badge">{editMode}</span>
+        <span className="tool-badge">{cellType}</span>
+      </div>
+      {expanded && newSource && (
+        <pre className="tool-content lang-python">
+          <code>{newSource}</code>
+        </pre>
+      )}
+    </div>
+  );
+}
+
+// AskUserQuestion tool display
+function AskUserQuestionTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const question = input.question as string || "";
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-ask-user">
+      <ToolResultHeader label="Question" hasResult={hasResult} />
+      <div className="tool-ask-content">
+        <span className="tool-icon">❓</span>
+        <span className="tool-question">{question}</span>
+      </div>
+      {hasResult && (
+        <div className="tool-answer">
+          <span className="tool-icon">💬</span>
+          <span>{typeof result === "string" ? result : JSON.stringify(result)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// EnterPlanMode tool display
+function EnterPlanModeTool({ result }: { result?: unknown }) {
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-plan-mode">
+      <ToolResultHeader label="Enter Plan Mode" hasResult={hasResult} />
+      <div className="tool-plan-header">
+        <span className="tool-icon">📝</span>
+        <span>Entering planning mode...</span>
+      </div>
+    </div>
+  );
+}
+
+// ExitPlanMode tool display with markdown plan
+function ExitPlanModeTool({ result }: { result?: unknown }) {
+  const [expanded, setExpanded] = useState(true);
+  const planContent = typeof result === "string" ? result : "";
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-plan-mode tool-exit-plan">
+      <ToolResultHeader label="Plan Complete" hasResult={hasResult} />
+      <div className="tool-plan-header" onClick={() => setExpanded(!expanded)}>
+        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+        <span className="tool-icon">✅</span>
+        <span>Plan ready for implementation</span>
+      </div>
+      {expanded && planContent && (
+        <div className="tool-plan-content">
+          <pre className="tool-content lang-markdown">
+            <code>{planContent}</code>
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// KillShell tool display
+function KillShellTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const shellId = input.shell_id as string || "";
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-kill-shell">
+      <ToolResultHeader label="Kill Shell" hasResult={hasResult} />
+      <div className="tool-header-row">
+        <span className="tool-icon">🛑</span>
+        <span>Terminated shell: {shellId.slice(0, 8)}...</span>
+      </div>
+    </div>
+  );
+}
+
+// Skill tool display
+function SkillTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
+  const skill = input.skill as string || "";
+  const hasResult = result !== undefined;
+
+  return (
+    <div className="tool-skill">
+      <ToolResultHeader label="Skill" hasResult={hasResult} />
+      <div className="tool-header-row">
+        <span className="tool-icon">⚡</span>
+        <span className="tool-skill-name">{skill}</span>
+      </div>
+      {hasResult && (
+        <div className="tool-output">
+          <pre><code>{typeof result === "string" ? result : JSON.stringify(result, null, 2)}</code></pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Generic tool display for unknown tools
 function GenericTool({ tool, result, isError }: ToolCallProps) {
   const [expanded, setExpanded] = useState(false);
@@ -251,6 +520,16 @@ function GenericTool({ tool, result, isError }: ToolCallProps) {
 }
 
 export function ToolCall({ tool, result, isError }: ToolCallProps) {
+  // Hide MCP tool calls completely (internal signaling)
+  if (tool.name.startsWith("mcp__")) {
+    return null;
+  }
+
+  // Hide TodoWrite tool calls (shown in dedicated panel)
+  if (tool.name === "TodoWrite") {
+    return null;
+  }
+
   // Route to specific tool display based on name
   switch (tool.name) {
     case "Read":
@@ -265,6 +544,26 @@ export function ToolCall({ tool, result, isError }: ToolCallProps) {
       return <GlobTool input={tool.input} result={result} />;
     case "Grep":
       return <GrepTool input={tool.input} result={result} />;
+    case "Task":
+      return <TaskTool input={tool.input} result={result} />;
+    case "TaskOutput":
+      return <TaskOutputTool input={tool.input} result={result} />;
+    case "WebFetch":
+      return <WebFetchTool input={tool.input} result={result} />;
+    case "WebSearch":
+      return <WebSearchTool input={tool.input} result={result} />;
+    case "NotebookEdit":
+      return <NotebookEditTool input={tool.input} result={result} />;
+    case "AskUserQuestion":
+      return <AskUserQuestionTool input={tool.input} result={result} />;
+    case "EnterPlanMode":
+      return <EnterPlanModeTool result={result} />;
+    case "ExitPlanMode":
+      return <ExitPlanModeTool result={result} />;
+    case "KillShell":
+      return <KillShellTool input={tool.input} result={result} />;
+    case "Skill":
+      return <SkillTool input={tool.input} result={result} />;
     default:
       return <GenericTool tool={tool} result={result} isError={isError} />;
   }

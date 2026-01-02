@@ -1,0 +1,73 @@
+{
+  "id": "US-021",
+  "title": "Fix: Terminal Stability and Rendering Issues",
+  "type": "bug_fix",
+  "description": "Fix terminal flickering, random newlines, question marks for special characters, and general rendering instability",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Debounce busy state detection to prevent spinner flickering", "done": true},
+    {"item": "Batch PTY data writes with requestAnimationFrame", "done": true},
+    {"item": "Add UTF-8 locale env vars (LANG, LC_ALL) to PTY spawn", "done": true},
+    {"item": "Load WebGL addon for GPU-accelerated rendering", "done": true},
+    {"item": "Debounce resize handler to prevent layout thrashing", "done": true},
+    {"item": "Remove aggressive newline filtering that causes cursor issues", "done": true}
+  ],
+  "knownIssues": [
+    {
+      "issue": "Claude Code inserts hard line breaks at ~80 chars",
+      "cause": "Known Claude Code bug, not our implementation",
+      "reference": "https://github.com/anthropics/claude-code/issues/7670",
+      "workaround": "None - must be fixed in Claude Code itself"
+    }
+  ],
+  "e2eTests": [
+    {
+      "name": "Spinner stays steady during Claude work",
+      "steps": [
+        "Start session with Claude",
+        "Give Claude a task that takes time",
+        "Verify: Spinner appears and stays steady (no flickering)",
+        "Wait for Claude to finish",
+        "Verify: Spinner disappears after ~300ms"
+      ],
+      "done": true,
+      "notes": "User confirmed spinner flickering is fixed"
+    },
+    {
+      "name": "Special characters display correctly",
+      "steps": [
+        "Open terminal session",
+        "Type or paste emojis and accented characters",
+        "Verify: No question marks appear instead of characters"
+      ],
+      "done": false
+    },
+    {
+      "name": "No random newlines in output",
+      "steps": [
+        "Run Claude session with heavy output",
+        "Verify: No orphaned/random newlines appear in terminal"
+      ],
+      "done": false,
+      "notes": "Known Claude Code bug #7670 - inserts hard line breaks at ~80 chars"
+    },
+    {
+      "name": "Resize handling is smooth",
+      "steps": [
+        "Open terminal session",
+        "Rapidly resize window",
+        "Verify: No flickering or misaligned text"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Spinner does not flicker during Claude processing", "done": true},
+    {"item": "WebGL renderer is loaded (check console)", "done": true},
+    {"item": "UTF-8 characters display correctly", "done": false},
+    {"item": "Terminal output is stable with no random artifacts", "done": false, "note": "Blocked by Claude Code bug #7670"}
+  ],
+  "files": [
+    "src/components/Terminal.tsx"
+  ]
+}

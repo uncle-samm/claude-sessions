@@ -156,7 +156,12 @@ async function runAgent(input: AgentInput): Promise<void> {
       allowedTools: input.options?.allowedTools,
       permissionMode: input.options?.permissionMode,
       mcpServers: input.options?.mcpServers,
-      systemPrompt: input.options?.systemPrompt,
+      // Use the standard Claude Code system prompt preset
+      // This ensures we get the full Claude Code behavior and capabilities
+      systemPrompt: input.options?.systemPrompt || {
+        type: "preset" as const,
+        preset: "claude_code" as const,
+      },
       // Always provide path to avoid import.meta.url issues in pkg binaries
       pathToClaudeCodeExecutable: claudeCodePath,
     };

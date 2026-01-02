@@ -5,7 +5,11 @@ import { ContentBlock, AssistantMessage } from "../../store/messages";
 import { useSessionStore } from "../../store/sessions";
 import { useSettingsStore, PermissionMode } from "../../store/settings";
 import { extractTodosFromToolInput } from "../../store/todos";
-import { useConvexSession, useConvexMessages, useConvexTodos } from "../../hooks/useConvexMessages";
+import {
+  useConvexSession,
+  useConvexMessages,
+  useConvexTodos,
+} from "../../hooks/useConvexMessages";
 import { MessageList } from "./MessageList";
 import { InputArea } from "./InputArea";
 import { TodoList } from "./TodoList";
@@ -46,17 +50,35 @@ interface ClaudeDone {
   exit_code?: number;
 }
 
-export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: HeadlessChatProps) {
+export function HeadlessChat({
+  sessionId,
+  cwd,
+  isActive,
+  sessionName,
+}: HeadlessChatProps) {
   const { setClaudeBusy, updateActivity } = useSessionStore();
-  const { thinkingEnabled, permissionMode, todosPanelVisible, toggleThinking, cyclePermissionMode, toggleTodosPanel, toggleVerboseMode } = useSettingsStore();
+  const {
+    thinkingEnabled,
+    permissionMode,
+    todosPanelVisible,
+    toggleThinking,
+    cyclePermissionMode,
+    toggleTodosPanel,
+    toggleVerboseMode,
+  } = useSettingsStore();
 
   // Convex integration for real-time sync
   const { convexSessionId, isLoading: sessionLoading } = useConvexSession(
     sessionId,
     cwd,
-    sessionName || sessionId
+    sessionName || sessionId,
   );
-  const { messages, addUserMessage, addAssistantMessage, isLoading: messagesLoading } = useConvexMessages(convexSessionId);
+  const {
+    messages,
+    addUserMessage,
+    addAssistantMessage,
+    isLoading: messagesLoading,
+  } = useConvexMessages(convexSessionId);
   const { todos, setTodos } = useConvexTodos(convexSessionId);
 
   // Local state
@@ -84,100 +106,135 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
   }));
 
   // Handle incoming Claude messages - save to Convex for real-time sync
-  const handleClaudeMessage = useCallback(async (event: { payload: ClaudeEvent }) => {
-    const { session_id, message } = event.payload;
-    if (session_id !== sessionId) return;
+  const handleClaudeMessage = useCallback(
+    async (event: { payload: ClaudeEvent }) => {
+      const { session_id, message } = event.payload;
+      if (session_id !== sessionId) return;
 
-    updateActivity(sessionId);
+      updateActivity(sessionId);
 
-    if (message.type === "system" && message.subtype === "init") {
-      // Initial message with session info
-      const claudeId = message.session_id;
-      if (claudeId) {
-        setClaudeSessionId(claudeId);
-        // Persist to local DB as well for backwards compatibility
-        invoke("update_session_claude_id", { id: sessionId, claudeSessionId: claudeId })
-          .catch(err => console.error("[HeadlessChat] Failed to save claude_session_id:", err));
-      }
-      setClaudeBusy(sessionId, true);
-    } else if (message.type === "assistant" && message.message) {
-      // Assistant response - save to Convex
-      const content: ContentBlock[] = message.message.content || [];
+      if (message.type === "system" && message.subtype === "init") {
+        // Initial message with session info
+        const claudeId = message.session_id;
+        if (claudeId) {
+          setClaudeSessionId(claudeId);
+          // Persist to local DB as well for backwards compatibility
+          invoke("update_session_claude_id", {
+            id: sessionId,
+            claudeSessionId: claudeId,
+          }).catch((err) =>
+            console.error(
+              "[HeadlessChat] Failed to save claude_session_id:",
+              err,
+            ),
+          );
+        }
+        setClaudeBusy(sessionId, true);
+      } else if (message.type === "assistant" && message.message) {
+        // Assistant response - save to Convex
+        const content: ContentBlock[] = message.message.content || [];
 
-      // Filter out placeholder responses like "No response requested"
-      const isPlaceholderResponse = content.length === 1 &&
-        content[0].type === "text" &&
-        "text" in content[0] &&
-        (content[0] as { text: string }).text.trim() === "No response requested.";
+        // Filter out placeholder responses like "No response requested"
+        const isPlaceholderResponse =
+          content.length === 1 &&
+          content[0].type === "text" &&
+          "text" in content[0] &&
+          (content[0] as { text: string }).text.trim() ===
+            "No response requested.";
 
-      if (isPlaceholderResponse) {
-        console.log("[HeadlessChat] Skipping placeholder response");
-        return;
-      }
+        if (isPlaceholderResponse) {
+          console.log("[HeadlessChat] Skipping placeholder response");
+          return;
+        }
 
-      // Filter out messages that only contain MCP tool calls (internal signaling)
-      const onlyMcpTools = content.every(block =>
-        block.type === "tool_use" &&
-        "name" in block &&
-        (block as { name: string }).name.startsWith("mcp__")
-      );
+        // Filter out messages that only contain MCP tool calls (internal signaling)
+        const onlyMcpTools = content.every(
+          (block) =>
+            block.type === "tool_use" &&
+            "name" in block &&
+            (block as { name: string }).name.startsWith("mcp__"),
+        );
 
-      if (onlyMcpTools && content.length > 0) {
-        console.log("[HeadlessChat] Skipping MCP-only message");
-        return;
-      }
+        if (onlyMcpTools && content.length > 0) {
+          console.log("[HeadlessChat] Skipping MCP-only message");
+          return;
+        }
 
-      // Check for TodoWrite tool calls and extract todos
-      for (const block of content) {
-        if (block.type === "tool_use" && "name" in block && block.name === "TodoWrite") {
-          const extractedTodos = extractTodosFromToolInput((block as { input: unknown }).input);
-          if (extractedTodos.length > 0 && convexSessionId) {
-            setTodos(extractedTodos).catch(err =>
-              console.error("[HeadlessChat] Failed to save todos:", err)
+        // Check for TodoWrite tool calls and extract todos
+        for (const block of content) {
+          if (
+            block.type === "tool_use" &&
+            "name" in block &&
+            block.name === "TodoWrite"
+          ) {
+            const extractedTodos = extractTodosFromToolInput(
+              (block as { input: unknown }).input,
+            );
+            if (extractedTodos.length > 0 && convexSessionId) {
+              setTodos(extractedTodos).catch((err) =>
+                console.error("[HeadlessChat] Failed to save todos:", err),
+              );
+            }
+          }
+        }
+
+        // Save to Convex for real-time sync
+        if (convexSessionId) {
+          try {
+            await addAssistantMessage(content, {
+              externalId: message.uuid,
+              model: message.message.model,
+            });
+            console.log("[HeadlessChat] Saved assistant message to Convex");
+          } catch (err) {
+            console.error(
+              "[HeadlessChat] Failed to save message to Convex:",
+              err,
             );
           }
         }
-      }
+      } else if (message.type === "result") {
+        // Final result
+        setLoading(false);
+        setClaudeBusy(sessionId, false);
 
-      // Save to Convex for real-time sync
-      if (convexSessionId) {
-        try {
-          await addAssistantMessage(content, {
-            externalId: message.uuid,
-            model: message.message.model,
-          });
-          console.log("[HeadlessChat] Saved assistant message to Convex");
-        } catch (err) {
-          console.error("[HeadlessChat] Failed to save message to Convex:", err);
+        if (message.subtype === "error") {
+          setError(message.result || "Unknown error");
         }
       }
-    } else if (message.type === "result") {
-      // Final result
+    },
+    [
+      sessionId,
+      convexSessionId,
+      addAssistantMessage,
+      setTodos,
+      setClaudeBusy,
+      updateActivity,
+    ],
+  );
+
+  // Handle stderr output (usually progress/debug info)
+  const handleClaudeStderr = useCallback(
+    (event: { payload: ClaudeError }) => {
+      if (event.payload.session_id !== sessionId) return;
+      console.log("[HeadlessChat] stderr:", event.payload.error);
+    },
+    [sessionId],
+  );
+
+  // Handle Claude process done
+  const handleClaudeDone = useCallback(
+    (event: { payload: ClaudeDone }) => {
+      if (event.payload.session_id !== sessionId) return;
       setLoading(false);
       setClaudeBusy(sessionId, false);
 
-      if (message.subtype === "error") {
-        setError(message.result || "Unknown error");
+      if (event.payload.exit_code !== 0) {
+        setError(`Claude exited with code ${event.payload.exit_code}`);
       }
-    }
-  }, [sessionId, convexSessionId, addAssistantMessage, setTodos, setClaudeBusy, updateActivity]);
-
-  // Handle stderr output (usually progress/debug info)
-  const handleClaudeStderr = useCallback((event: { payload: ClaudeError }) => {
-    if (event.payload.session_id !== sessionId) return;
-    console.log("[HeadlessChat] stderr:", event.payload.error);
-  }, [sessionId]);
-
-  // Handle Claude process done
-  const handleClaudeDone = useCallback((event: { payload: ClaudeDone }) => {
-    if (event.payload.session_id !== sessionId) return;
-    setLoading(false);
-    setClaudeBusy(sessionId, false);
-
-    if (event.payload.exit_code !== 0) {
-      setError(`Claude exited with code ${event.payload.exit_code}`);
-    }
-  }, [sessionId, setClaudeBusy]);
+    },
+    [sessionId, setClaudeBusy],
+  );
 
   // Load claude_session_id from database on mount
   useEffect(() => {
@@ -185,10 +242,15 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
 
     const loadClaudeSessionId = async () => {
       try {
-        const storedId = await invoke<string | null>("get_session_claude_id", { id: sessionId });
+        const storedId = await invoke<string | null>("get_session_claude_id", {
+          id: sessionId,
+        });
         if (storedId) {
           setClaudeSessionId(storedId);
-          console.log("[HeadlessChat] Loaded claude_session_id from DB:", storedId);
+          console.log(
+            "[HeadlessChat] Loaded claude_session_id from DB:",
+            storedId,
+          );
         }
       } catch (err) {
         console.log("[HeadlessChat] Could not load claude_session_id:", err);
@@ -235,15 +297,27 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isActive, toggleThinking, cyclePermissionMode, toggleTodosPanel, toggleVerboseMode]);
+  }, [
+    isActive,
+    toggleThinking,
+    cyclePermissionMode,
+    toggleTodosPanel,
+    toggleVerboseMode,
+  ]);
 
   // Start listening to Tauri events
   useEffect(() => {
     if (!isActive) return;
 
     const setupListeners = async () => {
-      const unsub1 = await listen<ClaudeEvent>("claude-message", handleClaudeMessage);
-      const unsub2 = await listen<ClaudeError>("claude-stderr", handleClaudeStderr);
+      const unsub1 = await listen<ClaudeEvent>(
+        "claude-message",
+        handleClaudeMessage,
+      );
+      const unsub2 = await listen<ClaudeError>(
+        "claude-stderr",
+        handleClaudeStderr,
+      );
       const unsub3 = await listen<ClaudeDone>("claude-done", handleClaudeDone);
       unlistenRefs.current = [unsub1, unsub2, unsub3];
     };
@@ -256,35 +330,56 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
     };
   }, [isActive, handleClaudeMessage, handleClaudeStderr, handleClaudeDone]);
 
-  // Send a message
-  const sendMessage = useCallback(async (text: string) => {
-    // Save user message to Convex first for immediate display
-    if (convexSessionId) {
-      try {
-        await addUserMessage(text);
-        console.log("[HeadlessChat] Saved user message to Convex");
-      } catch (err) {
-        console.error("[HeadlessChat] Failed to save user message:", err);
+  // Send a message using the Agent SDK sidecar
+  const sendMessage = useCallback(
+    async (text: string) => {
+      // Save user message to Convex first for immediate display
+      if (convexSessionId) {
+        try {
+          await addUserMessage(text);
+          console.log("[HeadlessChat] Saved user message to Convex");
+        } catch (err) {
+          console.error("[HeadlessChat] Failed to save user message:", err);
+        }
       }
-    }
 
-    setLoading(true);
-    setError(null);
-    setClaudeBusy(sessionId, true);
+      setLoading(true);
+      setError(null);
+      setClaudeBusy(sessionId, true);
 
-    try {
-      await invoke("start_claude_headless", {
-        sessionId,
-        prompt: text,
-        cwd,
-        resumeId: claudeSessionId || null,
-      });
-    } catch (err) {
-      setError(String(err));
-      setLoading(false);
-      setClaudeBusy(sessionId, false);
-    }
-  }, [sessionId, cwd, claudeSessionId, convexSessionId, addUserMessage, setClaudeBusy]);
+      // Map permission mode to SDK format
+      const sdkPermissionMode =
+        permissionMode === "acceptEdits"
+          ? "acceptEdits"
+          : permissionMode === "plan"
+            ? "plan"
+            : undefined; // "normal" → default SDK behavior
+
+      try {
+        // Use the new Agent SDK sidecar command
+        await invoke("start_claude_agent", {
+          sessionId,
+          prompt: text,
+          cwd,
+          resumeId: claudeSessionId || null,
+          permissionMode: sdkPermissionMode,
+        });
+      } catch (err) {
+        setError(String(err));
+        setLoading(false);
+        setClaudeBusy(sessionId, false);
+      }
+    },
+    [
+      sessionId,
+      cwd,
+      claudeSessionId,
+      convexSessionId,
+      addUserMessage,
+      setClaudeBusy,
+      permissionMode,
+    ],
+  );
 
   if (!isActive) {
     return null;
@@ -292,9 +387,12 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
 
   const getModeIndicator = (mode: PermissionMode): string => {
     switch (mode) {
-      case "acceptEdits": return "Auto-accept";
-      case "plan": return "Plan mode";
-      default: return "";
+      case "acceptEdits":
+        return "Auto-accept";
+      case "plan":
+        return "Plan mode";
+      default:
+        return "";
     }
   };
 
@@ -329,7 +427,9 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
         <div className="headless-chat-error">
           <span className="error-icon">⚠️</span>
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="error-dismiss">×</button>
+          <button onClick={() => setError(null)} className="error-dismiss">
+            ×
+          </button>
         </div>
       )}
 
@@ -359,7 +459,10 @@ export function HeadlessChat({ sessionId, cwd, isActive, sessionName }: Headless
             </span>
           )}
           {permissionMode !== "normal" && (
-            <span className={`mode-badge ${permissionMode}`} title="Press Shift+Tab to cycle">
+            <span
+              className={`mode-badge ${permissionMode}`}
+              title="Press Shift+Tab to cycle"
+            >
               {getModeIndicator(permissionMode)}
             </span>
           )}
