@@ -75,6 +75,15 @@ function renderInlineText(text: string): React.ReactNode {
   return parts.length > 0 ? parts : text;
 }
 
+function isHiddenToolName(name: string): boolean {
+  return name.startsWith("mcp__") || name === "TodoWrite";
+}
+
+function isHiddenToolBlock(block: ContentBlock): boolean {
+  if (block.type !== "tool_use") return false;
+  return isHiddenToolName((block as ToolUseContent).name);
+}
+
 // Render a single content block
 function ContentBlockView({ block, toolResults }: { block: ContentBlock; toolResults: Map<string, { content?: unknown; is_error?: boolean }> }) {
   if (block.type === "text") {
@@ -126,23 +135,32 @@ function MessageAvatar({ type }: { type: string }) {
   );
 }
 
-// Single message component
-function Message({ message }: { message: ChatMessage }) {
-  // Build a map of tool results for this message
-  const toolResults = new Map<string, { content?: unknown; is_error?: boolean }>();
-  for (const block of message.content) {
-    if (block.type === "tool_result") {
-      const resultBlock = block as ToolResultContent;
-      toolResults.set(resultBlock.tool_use_id, {
-        content: resultBlock.content,
-        is_error: resultBlock.is_error,
-      });
-    }
-  }
+function Message({ message, toolResults }: { message: ChatMessage; toolResults: Map<string, { content?: unknown; is_error?: boolean }> }) {
 
   const isUser = message.type === "user";
   const isSystem = message.type === "system";
   const isError = message.type === "error";
+
+  const visibleBlocks = message.content.filter((block) => {
+    if (block.type === "tool_result") return false;
+    if (isHiddenToolBlock(block)) return false;
+    return true;
+  });
+  const hasVisibleBlocks = visibleBlocks.length > 0;
+  const hasHiddenToolCalls = message.content.some((block) => isHiddenToolBlock(block));
+  const hasTodoWrite = message.content.some(
+    (block) => block.type === "tool_use" && (block as ToolUseContent).name === "TodoWrite",
+  );
+  const emptyTitle = hasTodoWrite
+    ? "Todo list updated"
+    : hasHiddenToolCalls
+      ? "Tool update recorded"
+      : "No displayable content";
+  const emptyDetail = hasTodoWrite
+    ? "Open the Todo panel to view tasks."
+    : hasHiddenToolCalls
+      ? "This tool call did not return a displayable result."
+      : "This message contains no visible content.";
 
   return (
     <div className={`chat-message chat-message-${message.type}`}>
@@ -157,9 +175,19 @@ function Message({ message }: { message: ChatMessage }) {
           )}
         </div>
         <div className="message-body">
-          {message.content.map((block, i) => (
-            <ContentBlockView key={i} block={block} toolResults={toolResults} />
-          ))}
+          {hasVisibleBlocks ? (
+            visibleBlocks.map((block, i) => (
+              <ContentBlockView key={i} block={block} toolResults={toolResults} />
+            ))
+          ) : (
+            <div className="message-empty">
+              <span className="message-empty-icon" />
+              <div className="message-empty-text">
+                <div className="message-empty-title">{emptyTitle}</div>
+                <div className="message-empty-detail">{emptyDetail}</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -176,17 +204,42 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
     }
   }, [messages]);
 
+  const toolResults = new Map<string, { content?: unknown; is_error?: boolean }>();
+  for (const message of messages) {
+    for (const block of message.content) {
+      if (block.type === "tool_result") {
+        const resultBlock = block as ToolResultContent;
+        toolResults.set(resultBlock.tool_use_id, {
+          content: resultBlock.content,
+          is_error: resultBlock.is_error,
+        });
+      }
+    }
+  }
+
+  const displayMessages = messages.filter((message) => {
+    if (message.content.length === 0) return true;
+    const toolResultOnly = message.content.every((block) => block.type === "tool_result");
+    return !toolResultOnly;
+  });
+
   return (
     <div className="message-list" ref={containerRef}>
-      {messages.length === 0 && !isLoading && (
+      {displayMessages.length === 0 && !isLoading && (
         <div className="message-list-empty">
-          <div className="empty-icon">💬</div>
-          <p>Start a conversation with Claude</p>
-          <p className="empty-hint">Type a message below to begin</p>
+          <div className="empty-card">
+            <span className="empty-icon" aria-hidden="true" />
+            <p className="empty-title">Start a conversation</p>
+            <p className="empty-hint">Type a message below or drop a task to get started.</p>
+            <div className="empty-suggestions">
+              <span className="empty-suggestion">Summarize this workspace</span>
+              <span className="empty-suggestion">Review recent changes</span>
+            </div>
+          </div>
         </div>
       )}
-      {messages.map((msg) => (
-        <Message key={msg.id} message={msg} />
+      {displayMessages.map((msg) => (
+        <Message key={msg.id} message={msg} toolResults={toolResults} />
       ))}
       {isLoading && (
         <div className="message-loading">

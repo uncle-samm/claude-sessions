@@ -38,6 +38,7 @@ export function TodoList({ todos }: TodoListProps) {
   const completedCount = todos.filter(t => t.status === "completed").length;
   const totalCount = todos.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const progressLabel = totalCount > 0 ? `${completedCount}/${totalCount} (${progressPercent}%)` : "No tasks yet";
 
   // Find the current in-progress task
   const currentTask = todos.find(t => t.status === "in_progress");
@@ -48,7 +49,7 @@ export function TodoList({ todos }: TodoListProps) {
         <span className="todo-icon-styled" />
         <span className="todo-title">Todo List</span>
         <span className="todo-progress">
-          {completedCount}/{totalCount} ({progressPercent}%)
+          {progressLabel}
         </span>
       </div>
 
@@ -63,27 +64,34 @@ export function TodoList({ todos }: TodoListProps) {
       {/* Current task highlight */}
       {currentTask && (
         <div className="todo-current">
-          <span className="current-indicator">▶</span>
+          <span className="current-indicator" aria-hidden="true" />
           <span className="current-text">{currentTask.activeForm || currentTask.content}</span>
         </div>
       )}
 
       {/* Todo items */}
-      <div className="todo-items">
-        {todos.map((todo, index) => (
-          <div key={index} className={`todo-item ${getStatusClass(todo.status)}`}>
-            <div className="todo-item-row">
-              <TodoCheckbox status={todo.status} />
-              <span className={`todo-content ${todo.status === "completed" ? "strikethrough" : ""}`}>
-                {todo.content}
-              </span>
+      {totalCount === 0 ? (
+        <div className="todo-empty">
+          <div className="todo-empty-title">No todos yet</div>
+          <div className="todo-empty-detail">Claude will add tasks here when it plans work.</div>
+        </div>
+      ) : (
+        <div className="todo-items">
+          {todos.map((todo, index) => (
+            <div key={index} className={`todo-item ${getStatusClass(todo.status)}`}>
+              <div className="todo-item-row">
+                <TodoCheckbox status={todo.status} />
+                <span className={`todo-content ${todo.status === "completed" ? "strikethrough" : ""}`}>
+                  {todo.content}
+                </span>
+              </div>
+              {todo.priority && todo.priority !== "low" && (
+                <PriorityBadge priority={todo.priority} />
+              )}
             </div>
-            {todo.priority && todo.priority !== "low" && (
-              <PriorityBadge priority={todo.priority} />
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Keyboard hint */}
       <div className="todo-hint">

@@ -20,8 +20,8 @@ export function ThinkingBlock({ thinking }: ThinkingBlockProps) {
   return (
     <div className="thinking-block">
       <div className="thinking-header" onClick={() => setExpanded(!expanded)}>
-        <span className="thinking-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="thinking-icon">💭</span>
+        <span className={`thinking-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="thinking-icon" aria-hidden="true" />
         <span className="thinking-label">Thinking</span>
         <span className="thinking-length">({thinking.length} chars)</span>
       </div>

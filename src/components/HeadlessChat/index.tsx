@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { ContentBlock, AssistantMessage } from "../../store/messages";
+import { ContentBlock, AssistantMessage, ToolResultContent } from "../../store/messages";
 import { useSessionStore } from "../../store/sessions";
 import { useSettingsStore, PermissionMode } from "../../store/settings";
 import { extractTodosFromToolInput } from "../../store/todos";
@@ -33,11 +33,17 @@ interface ClaudeMessagePayload {
   subtype?: string;
   session_id?: string;
   tools?: string[];
-  message?: AssistantMessage;
+  message?: AssistantMessage | { content?: ContentBlock[]; model?: string; role?: string };
   result?: string;
   total_cost_usd?: number;
   duration_ms?: number;
   uuid?: string;
+}
+
+function getMessageContent(message: ClaudeMessagePayload["message"]): ContentBlock[] {
+  if (!message || typeof message !== "object") return [];
+  const content = (message as { content?: unknown }).content;
+  return Array.isArray(content) ? (content as ContentBlock[]) : [];
 }
 
 interface ClaudeError {
@@ -132,7 +138,8 @@ export function HeadlessChat({
         setClaudeBusy(sessionId, true);
       } else if (message.type === "assistant" && message.message) {
         // Assistant response - save to Convex
-        const content: ContentBlock[] = message.message.content || [];
+        const assistantMessage = message.message as AssistantMessage;
+        const content = getMessageContent(assistantMessage);
 
         // Filter out placeholder responses like "No response requested"
         const isPlaceholderResponse =
@@ -183,12 +190,33 @@ export function HeadlessChat({
           try {
             await addAssistantMessage(content, {
               externalId: message.uuid,
-              model: message.message.model,
+              model: assistantMessage?.model,
             });
             console.log("[HeadlessChat] Saved assistant message to Convex");
           } catch (err) {
             console.error(
               "[HeadlessChat] Failed to save message to Convex:",
+              err,
+            );
+          }
+        }
+      } else if (message.type === "user" && message.message) {
+        const content = getMessageContent(message.message);
+        const toolResults = content.filter(
+          (block): block is ToolResultContent => block.type === "tool_result",
+        );
+
+        if (toolResults.length === 0) {
+          return;
+        }
+
+        if (convexSessionId) {
+          try {
+            await addAssistantMessage(toolResults);
+            console.log("[HeadlessChat] Saved tool result message to Convex");
+          } catch (err) {
+            console.error(
+              "[HeadlessChat] Failed to save tool result to Convex:",
               err,
             );
           }
@@ -353,7 +381,7 @@ export function HeadlessChat({
           ? "acceptEdits"
           : permissionMode === "plan"
             ? "plan"
-            : undefined; // "normal" → default SDK behavior
+            : undefined; // "normal" -> default SDK behavior
 
       try {
         // Use the new Agent SDK sidecar command
@@ -402,7 +430,7 @@ export function HeadlessChat({
     <div className="headless-chat">
       <div className="headless-chat-header">
         <div className="header-title">
-          <span className="header-icon">🤖</span>
+          <span className="header-icon" aria-hidden="true" />
           <span>Claude</span>
           {claudeSessionId && (
             <span className="header-session-id" title={claudeSessionId}>
@@ -410,9 +438,12 @@ export function HeadlessChat({
             </span>
           )}
           {convexSessionId && (
-            <span className="header-sync-badge" title="Synced to Convex">
-              ☁️
-            </span>
+            <span
+              className="header-sync-badge"
+              title="Synced to Convex"
+              aria-label="Synced to Convex"
+              role="img"
+            />
           )}
         </div>
         {(loading || isInitializing) && (
@@ -425,7 +456,7 @@ export function HeadlessChat({
 
       {error && (
         <div className="headless-chat-error">
-          <span className="error-icon">⚠️</span>
+          <span className="error-icon" aria-hidden="true" />
           <span>{error}</span>
           <button onClick={() => setError(null)} className="error-dismiss">
             ×
@@ -436,7 +467,7 @@ export function HeadlessChat({
       <div className="headless-chat-content">
         <MessageList messages={chatMessages} isLoading={loading} />
 
-        {todosPanelVisible && todoItems.length > 0 && (
+        {todosPanelVisible && (
           <TodoList todos={todoItems} sessionId={sessionId} />
         )}
       </div>

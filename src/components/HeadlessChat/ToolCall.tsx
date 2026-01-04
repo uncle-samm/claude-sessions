@@ -7,6 +7,38 @@ interface ToolCallProps {
   isError?: boolean;
 }
 
+type ToolEmptyTone = "pending" | "empty";
+
+function formatToolResult(result: unknown): string {
+  if (result === undefined) return "";
+  if (typeof result === "string") return result;
+  try {
+    return JSON.stringify(result, null, 2) ?? "";
+  } catch {
+    return String(result);
+  }
+}
+
+function ToolEmptyState({
+  title,
+  detail,
+  tone = "pending",
+}: {
+  title: string;
+  detail?: string;
+  tone?: ToolEmptyTone;
+}) {
+  return (
+    <div className={`tool-empty ${tone}`}>
+      <span className="tool-empty-indicator" aria-hidden="true" />
+      <div className="tool-empty-text">
+        <div className="tool-empty-title">{title}</div>
+        {detail && <div className="tool-empty-detail">{detail}</div>}
+      </div>
+    </div>
+  );
+}
+
 // Checkmark icon component
 function CheckIcon() {
   return (
@@ -20,7 +52,7 @@ function CheckIcon() {
 function ToolResultHeader({ label, hasResult }: { label: string; hasResult: boolean }) {
   return (
     <div className="tool-result-header">
-      {hasResult && <CheckIcon />}
+      {hasResult ? <CheckIcon /> : <span className="tool-result-pending" aria-hidden="true" />}
       <span className="tool-result-label">{label}</span>
     </div>
   );
@@ -68,7 +100,8 @@ function countLines(content: string): number {
 function ReadTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
   const [expanded, setExpanded] = useState(false);
   const filePath = input.file_path as string || "";
-  const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const content = formatToolResult(result);
+  const hasContent = content.trim().length > 0;
   const lineCount = countLines(content);
   const hasResult = result !== undefined;
 
@@ -81,14 +114,24 @@ function ReadTool({ input, result }: { input: Record<string, unknown>; result?: 
           <span className="tool-path-text">{filePath}</span>
           <span className="tool-line-count">({lineCount} lines)</span>
         </div>
-        <button className="expand-btn" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}>
-          {expanded ? "Collapse" : "> Expand"}
+        <button
+          className={`expand-btn ${expanded ? "expanded" : ""}`}
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+        >
+          {expanded ? "Collapse" : "Expand"}
         </button>
       </div>
-      {expanded && content && (
+      {expanded && hasContent && (
         <pre className={`tool-content lang-${getLanguage(filePath)}`}>
           <code>{content}</code>
         </pre>
+      )}
+      {expanded && !hasContent && (
+        <ToolEmptyState
+          tone={hasResult ? "empty" : "pending"}
+          title={hasResult ? "No content returned" : "Waiting for read output"}
+          detail={hasResult ? "This read returned an empty response." : "Output will appear here when ready."}
+        />
       )}
     </div>
   );
@@ -119,22 +162,30 @@ function EditTool({ input, result }: { input: Record<string, unknown>; result?: 
   const oldString = input.old_string as string || "";
   const newString = input.new_string as string || "";
   const hasResult = result !== undefined;
+  const hasDiff = oldString.trim().length > 0 || newString.trim().length > 0;
 
   return (
     <div className="tool-edit">
       <ToolResultHeader label="Edit Result" hasResult={hasResult} />
       <div className="tool-header-row">
         <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
-          <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+          <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
           <span className="tool-icon file-icon" />
           <span className="tool-path-text">{filePath}</span>
         </div>
       </div>
-      {expanded && (
+      {expanded && hasDiff && (
         <div className="tool-diff">
           {oldString && <DiffLines content={oldString} type="removed" />}
           {newString && <DiffLines content={newString} type="added" />}
         </div>
+      )}
+      {expanded && !hasDiff && (
+        <ToolEmptyState
+          tone={hasResult ? "empty" : "pending"}
+          title={hasResult ? "No diff to display" : "Waiting for edit details"}
+          detail={hasResult ? "This edit did not include a diff." : "Diff details will appear here when ready."}
+        />
       )}
     </div>
   );
@@ -145,26 +196,39 @@ function BashTool({ input, result, isError }: { input: Record<string, unknown>; 
   const [expanded, setExpanded] = useState(true);
   const command = input.command as string || "";
   const description = input.description as string;
-  const output = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const output = formatToolResult(result);
+  const hasOutput = output.trim().length > 0;
   const hasResult = result !== undefined;
 
   return (
     <div className={`tool-bash ${isError ? "has-error" : ""}`}>
       <ToolResultHeader label={isError ? "Bash Error" : "Bash Result"} hasResult={hasResult && !isError} />
       <div className="tool-bash-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon bash-icon">$</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-terminal" aria-hidden="true" />
         <span className="tool-command">{command.length > 60 ? command.slice(0, 60) + "..." : command}</span>
       </div>
       {expanded && (
         <div className="tool-bash-content">
           {description && <div className="tool-description">{description}</div>}
           <pre className="tool-command-full"><code>{command}</code></pre>
-          {output && (
+          {hasOutput ? (
             <div className="tool-output">
               <div className="tool-output-label">Output:</div>
               <pre><code>{output}</code></pre>
             </div>
+          ) : (
+            <ToolEmptyState
+              tone={hasResult ? "empty" : "pending"}
+              title={
+                hasResult
+                  ? isError
+                    ? "No error output captured"
+                    : "No output returned"
+                  : "Waiting for command output"
+              }
+              detail={hasResult ? "This command did not return output." : "Output will appear here when ready."}
+            />
           )}
         </div>
       )}
@@ -177,20 +241,28 @@ function WriteTool({ input, result }: { input: Record<string, unknown>; result?:
   const [expanded, setExpanded] = useState(false);
   const filePath = input.file_path as string || "";
   const content = input.content as string || "";
+  const hasContent = content.trim().length > 0;
 
   return (
     <div className="tool-write">
       <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">📝</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-write" aria-hidden="true" />
         <span className="tool-path-text">{formatPath(filePath)}</span>
-        {result !== undefined && <span className="tool-status-ok">✓</span>}
+        {result !== undefined && <span className="tool-status-ok">OK</span>}
         <span className="tool-size">({content.length} chars)</span>
       </div>
-      {expanded && content && (
+      {expanded && hasContent && (
         <pre className={`tool-content lang-${getLanguage(filePath)}`}>
           <code>{content}</code>
         </pre>
+      )}
+      {expanded && !hasContent && (
+        <ToolEmptyState
+          tone="empty"
+          title="No content provided"
+          detail="This write call did not include any content to display."
+        />
       )}
     </div>
   );
@@ -201,12 +273,13 @@ function GlobTool({ input, result }: { input: Record<string, unknown>; result?: 
   const [expanded, setExpanded] = useState(false);
   const pattern = input.pattern as string || "";
   const files: string[] = Array.isArray(result) ? result.map((f) => String(f)) : [];
+  const hasResult = result !== undefined;
 
   return (
     <div className="tool-glob">
       <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">🔍</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-search" aria-hidden="true" />
         <span className="tool-path-text">{pattern}</span>
         <span className="tool-count">({files.length} files)</span>
       </div>
@@ -217,6 +290,13 @@ function GlobTool({ input, result }: { input: Record<string, unknown>; result?: 
           ))}
         </div>
       )}
+      {expanded && files.length === 0 && (
+        <ToolEmptyState
+          tone={hasResult ? "empty" : "pending"}
+          title={hasResult ? "No files matched" : "Waiting for file list"}
+          detail={hasResult ? "The glob pattern did not match any files." : "Matches will appear here when ready."}
+        />
+      )}
     </div>
   );
 }
@@ -225,19 +305,28 @@ function GlobTool({ input, result }: { input: Record<string, unknown>; result?: 
 function GrepTool({ input, result }: { input: Record<string, unknown>; result?: unknown }) {
   const [expanded, setExpanded] = useState(false);
   const pattern = input.pattern as string || "";
-  const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const content = formatToolResult(result);
+  const hasContent = content.trim().length > 0;
+  const hasResult = result !== undefined;
 
   return (
     <div className="tool-grep">
       <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">🔎</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-search" aria-hidden="true" />
         <span className="tool-path-text">grep: {pattern}</span>
       </div>
-      {expanded && content && (
+      {expanded && hasContent && (
         <pre className="tool-content">
           <code>{content}</code>
         </pre>
+      )}
+      {expanded && !hasContent && (
+        <ToolEmptyState
+          tone={hasResult ? "empty" : "pending"}
+          title={hasResult ? "No matches found" : "Waiting for grep results"}
+          detail={hasResult ? "This search did not return any matches." : "Matches will appear here when ready."}
+        />
       )}
     </div>
   );
@@ -258,8 +347,11 @@ function TaskTool({ input, result }: { input: Record<string, unknown>; result?: 
     <div className="tool-task">
       <ToolResultHeader label={runInBackground ? "Background Task" : "Task"} hasResult={hasResult} />
       <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">{runInBackground ? "🔄" : "🤖"}</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span
+          className={`tool-icon ${runInBackground ? "tool-icon-activity" : "tool-icon-agent"}`}
+          aria-hidden="true"
+        />
         <span className="tool-task-description">{description}</span>
         {subagentType && <span className="tool-badge">{subagentType}</span>}
         {model && <span className="tool-badge tool-badge-model">{model}</span>}
@@ -269,7 +361,7 @@ function TaskTool({ input, result }: { input: Record<string, unknown>; result?: 
         <div className="tool-task-content">
           {resumeId && (
             <div className="tool-task-resume">
-              <span className="tool-icon">↩️</span>
+              <span className="tool-icon tool-icon-resume" aria-hidden="true" />
               <span>Resuming agent: {resumeId.slice(0, 12)}...</span>
             </div>
           )}
@@ -301,14 +393,14 @@ function TaskOutputTool({ input, result }: { input: Record<string, unknown>; res
     <div className="tool-task-output">
       <ToolResultHeader label="Task Output" hasResult={hasResult} />
       <div className="tool-header-row">
-        <span className="tool-icon">📋</span>
+        <span className="tool-icon tool-icon-clipboard" aria-hidden="true" />
         <span className="tool-task-id">Task: {taskId.slice(0, 8)}...</span>
         {!blocking && <span className="tool-badge tool-badge-nonblock">non-blocking</span>}
         {timeout && <span className="tool-badge tool-badge-timeout">{timeout}ms</span>}
       </div>
       {!hasResult && blocking && (
         <div className="tool-task-waiting">
-          <span className="waiting-indicator">⏳</span>
+          <span className="waiting-indicator" aria-hidden="true" />
           <span>Waiting for task to complete...</span>
         </div>
       )}
@@ -326,7 +418,8 @@ function WebFetchTool({ input, result }: { input: Record<string, unknown>; resul
   const [expanded, setExpanded] = useState(false);
   const url = input.url as string || "";
   const prompt = input.prompt as string || "";
-  const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const content = formatToolResult(result);
+  const hasContent = content.trim().length > 0;
   const hasResult = result !== undefined;
 
   // Extract domain from URL
@@ -341,18 +434,24 @@ function WebFetchTool({ input, result }: { input: Record<string, unknown>; resul
     <div className="tool-webfetch">
       <ToolResultHeader label="Web Fetch" hasResult={hasResult} />
       <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">🌐</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-globe" aria-hidden="true" />
         <span className="tool-url">{domain}</span>
       </div>
       {expanded && (
         <div className="tool-webfetch-content">
           <div className="tool-url-full">{url}</div>
           {prompt && <div className="tool-prompt">Prompt: {prompt}</div>}
-          {content && (
+          {hasContent ? (
             <div className="tool-output">
               <pre><code>{content.length > 1000 ? content.slice(0, 1000) + "..." : content}</code></pre>
             </div>
+          ) : (
+            <ToolEmptyState
+              tone={hasResult ? "empty" : "pending"}
+              title={hasResult ? "No content returned" : "Waiting for fetch results"}
+              detail={hasResult ? "This fetch returned an empty response." : "Content will appear here when ready."}
+            />
           )}
         </div>
       )}
@@ -366,31 +465,39 @@ function WebSearchTool({ input, result }: { input: Record<string, unknown>; resu
   const query = input.query as string || "";
   const allowedDomains = input.allowed_domains as string[] | undefined;
   const blockedDomains = input.blocked_domains as string[] | undefined;
-  const content = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+  const content = formatToolResult(result);
+  const hasContent = content.trim().length > 0;
   const hasResult = result !== undefined;
 
   return (
     <div className="tool-websearch">
       <ToolResultHeader label="Web Search" hasResult={hasResult} />
       <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">🔍</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-search" aria-hidden="true" />
         <span className="tool-search-query">"{query}"</span>
       </div>
       {(allowedDomains || blockedDomains) && (
         <div className="tool-search-filters">
           {allowedDomains && allowedDomains.length > 0 && (
-            <span className="tool-filter tool-filter-allow">✓ {allowedDomains.join(", ")}</span>
+            <span className="tool-filter tool-filter-allow">Allow: {allowedDomains.join(", ")}</span>
           )}
           {blockedDomains && blockedDomains.length > 0 && (
-            <span className="tool-filter tool-filter-block">✗ {blockedDomains.join(", ")}</span>
+            <span className="tool-filter tool-filter-block">Block: {blockedDomains.join(", ")}</span>
           )}
         </div>
       )}
-      {expanded && content && (
+      {expanded && hasContent && (
         <div className="tool-output">
           <pre><code>{content.length > 1000 ? content.slice(0, 1000) + "..." : content}</code></pre>
         </div>
+      )}
+      {expanded && !hasContent && (
+        <ToolEmptyState
+          tone={hasResult ? "empty" : "pending"}
+          title={hasResult ? "No results returned" : "Waiting for search results"}
+          detail={hasResult ? "This search did not return output." : "Results will appear here when ready."}
+        />
       )}
     </div>
   );
@@ -405,22 +512,30 @@ function NotebookEditTool({ input, result }: { input: Record<string, unknown>; r
   const editMode = input.edit_mode as string || "replace";
   const newSource = input.new_source as string || "";
   const hasResult = result !== undefined;
+  const hasSource = newSource.trim().length > 0;
 
   return (
     <div className="tool-notebook">
       <ToolResultHeader label="Notebook Edit" hasResult={hasResult} />
       <div className="tool-header-row" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">📓</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-notebook" aria-hidden="true" />
         <span className="tool-path-text">{formatPath(notebookPath)}</span>
         <span className="tool-badge">{editMode}</span>
         <span className="tool-badge">{cellType}</span>
         {cellId && <span className="tool-badge tool-badge-cell">cell: {cellId}</span>}
       </div>
-      {expanded && newSource && (
+      {expanded && hasSource && (
         <pre className={`tool-content lang-${cellType === "markdown" ? "markdown" : "python"}`}>
           <code>{newSource}</code>
         </pre>
+      )}
+      {expanded && !hasSource && (
+        <ToolEmptyState
+          tone={hasResult ? "empty" : "pending"}
+          title={hasResult ? "No cell content provided" : "Waiting for notebook edit"}
+          detail={hasResult ? "This edit did not include any cell content." : "Content will appear here when ready."}
+        />
       )}
     </div>
   );
@@ -436,7 +551,7 @@ function AskUserQuestionTool({ input, result }: { input: Record<string, unknown>
     <div className="tool-ask-user">
       <ToolResultHeader label={hasResult ? "Question Answered" : "Waiting for Answer"} hasResult={hasResult} />
       <div className="tool-ask-content">
-        <span className="tool-icon">❓</span>
+        <span className="tool-icon tool-icon-question" aria-hidden="true" />
         <span className="tool-question">{question}</span>
       </div>
       {options && options.length > 0 && !hasResult && (
@@ -451,13 +566,13 @@ function AskUserQuestionTool({ input, result }: { input: Record<string, unknown>
       )}
       {!hasResult && (
         <div className="tool-ask-waiting">
-          <span className="waiting-indicator">⏳</span>
+          <span className="waiting-indicator" aria-hidden="true" />
           <span>Waiting for user response...</span>
         </div>
       )}
       {hasResult && (
         <div className="tool-answer">
-          <span className="tool-icon">💬</span>
+          <span className="tool-icon tool-icon-response" aria-hidden="true" />
           <span>{typeof result === "string" ? result : JSON.stringify(result)}</span>
         </div>
       )}
@@ -473,7 +588,7 @@ function EnterPlanModeTool({ result }: { result?: unknown }) {
     <div className="tool-plan-mode">
       <ToolResultHeader label="Enter Plan Mode" hasResult={hasResult} />
       <div className="tool-plan-header">
-        <span className="tool-icon">📝</span>
+        <span className="tool-icon tool-icon-plan" aria-hidden="true" />
         <span>Entering planning mode...</span>
       </div>
     </div>
@@ -492,12 +607,12 @@ function ExitPlanModeTool({ input, result }: { input: Record<string, unknown>; r
     <div className="tool-plan-mode tool-exit-plan">
       <ToolResultHeader label="Plan Complete" hasResult={hasResult} />
       <div className="tool-plan-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
-        <span className="tool-icon">✅</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
+        <span className="tool-icon tool-icon-check" aria-hidden="true" />
         <span>Plan ready for implementation</span>
         {launchSwarm && (
           <span className="tool-badge tool-badge-swarm">
-            🐝 Swarm{teammateCount ? ` (${teammateCount} agents)` : ""}
+            Swarm{teammateCount ? ` (${teammateCount} agents)` : ""}
           </span>
         )}
       </div>
@@ -521,7 +636,7 @@ function KillShellTool({ input, result }: { input: Record<string, unknown>; resu
     <div className="tool-kill-shell">
       <ToolResultHeader label="Kill Shell" hasResult={hasResult} />
       <div className="tool-header-row">
-        <span className="tool-icon">🛑</span>
+        <span className="tool-icon tool-icon-stop" aria-hidden="true" />
         <span>Terminated shell: {shellId.slice(0, 8)}...</span>
       </div>
     </div>
@@ -537,7 +652,7 @@ function SkillTool({ input, result }: { input: Record<string, unknown>; result?:
     <div className="tool-skill">
       <ToolResultHeader label="Skill" hasResult={hasResult} />
       <div className="tool-header-row">
-        <span className="tool-icon">⚡</span>
+        <span className="tool-icon tool-icon-spark" aria-hidden="true" />
         <span className="tool-skill-name">{skill}</span>
       </div>
       {hasResult && (
@@ -556,9 +671,9 @@ function GenericTool({ tool, result, isError }: ToolCallProps) {
   return (
     <div className={`tool-generic ${isError ? "has-error" : ""}`}>
       <div className="tool-header" onClick={() => setExpanded(!expanded)}>
-        <span className="tool-chevron">{expanded ? "▼" : "▶"}</span>
+        <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
         <span className="tool-name">{tool.name}</span>
-        {isError && <span className="tool-status-error">✗</span>}
+        {isError && <span className="tool-status-error">ERR</span>}
       </div>
       {expanded && (
         <div className="tool-body">

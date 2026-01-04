@@ -1,0 +1,43 @@
+{
+  "id": "US-028",
+  "title": "Bug Fix: Persist Tool Results From Stream Messages",
+  "type": "bug_fix",
+  "status": "in_progress",
+  "requirements": [
+    {
+      "item": "Capture tool_result content from Claude stream user messages and persist it to Convex",
+      "done": true
+    },
+    {
+      "item": "Render tool results even when they arrive in separate messages",
+      "done": true
+    },
+    {
+      "item": "Hide tool_result-only messages from the chat timeline",
+      "done": true
+    }
+  ],
+  "e2eTests": [
+    {
+      "name": "Tool results persist across reload",
+      "steps": [
+        "Open a session that triggers a Read or Bash tool call",
+        "Wait for the tool output to render in the tool card",
+        "Reload the session",
+        "Confirm the tool output still appears in the tool card"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "item": "Tool cards stop showing perpetual loading when results were emitted by the SDK",
+      "done": false
+    }
+  ],
+  "files": [
+    "src/components/HeadlessChat/index.tsx",
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/store/messages.ts"
+  ]
+}

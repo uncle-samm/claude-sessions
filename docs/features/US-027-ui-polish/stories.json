@@ -1,0 +1,43 @@
+{
+  "id": "US-027",
+  "title": "Headless UI Visual Refresh and Tool Empty States",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Polish HeadlessChat layout, message bubbles, and tool cards with updated spacing, borders, and surface colors", "done": true},
+    {"item": "Add informative empty states for tool calls with no output or pending results", "done": true},
+    {"item": "Prevent empty assistant bubbles when hidden tool calls are the only content", "done": true},
+    {"item": "Add an empty state for the Todo panel when there are no todos", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "Empty tool call UI",
+      "steps": [
+        "Open a session with a tool call that has no result yet",
+        "Confirm the tool card shows a pending or empty placeholder instead of a blank area",
+        "Verify the placeholder disappears once the result arrives"
+      ],
+      "done": false
+    },
+    {
+      "name": "Todo panel empty state",
+      "steps": [
+        "Open a session with no todos",
+        "Confirm the Todo panel shows the empty-state message",
+        "Trigger a TodoWrite tool call and confirm the list renders items"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "HeadlessChat UI feels more polished and closer to design references", "done": false},
+    {"item": "No empty assistant bubbles appear when hidden tool calls are the only content", "done": false}
+  ],
+  "files": [
+    "src/components/HeadlessChat/ToolCall.tsx",
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/components/HeadlessChat/TodoList.tsx",
+    "src/components/HeadlessChat/styles.css",
+    "src/App.css"
+  ]
+}
