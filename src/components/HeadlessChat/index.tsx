@@ -1,10 +1,11 @@
 import { useEffect, useCallback, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { ContentBlock, AssistantMessage, ToolResultContent } from "../../store/messages";
+import { ContentBlock, AssistantMessage, ToolResultContent, ToolUseContent } from "../../store/messages";
 import { useSessionStore } from "../../store/sessions";
 import { useSettingsStore, PermissionMode } from "../../store/settings";
 import { extractTodosFromToolInput } from "../../store/todos";
+import { useTouchedFilesStore } from "../../store/touchedFiles";
 import {
   useConvexSession,
   useConvexMessages,
@@ -46,6 +47,42 @@ function getMessageContent(message: ClaudeMessagePayload["message"]): ContentBlo
   return Array.isArray(content) ? (content as ContentBlock[]) : [];
 }
 
+function normalizeFilePath(rawPath: string, cwd: string): string {
+  let cleaned = rawPath.trim().replace(/\\/g, "/");
+  const normalizedCwd = cwd.replace(/\\/g, "/").replace(/\/$/, "");
+  if (normalizedCwd && cleaned.startsWith(`${normalizedCwd}/`)) {
+    cleaned = cleaned.slice(normalizedCwd.length + 1);
+  }
+  if (cleaned.startsWith("./")) {
+    cleaned = cleaned.slice(2);
+  }
+  return cleaned;
+}
+
+function extractTouchedFiles(blocks: ContentBlock[], cwd: string): string[] {
+  const touched: string[] = [];
+  for (const block of blocks) {
+    if (block.type !== "tool_use") continue;
+    const tool = block as ToolUseContent;
+    const input = tool.input as Record<string, unknown>;
+    const filePath = typeof input.file_path === "string" ? input.file_path : undefined;
+    const notebookPath = typeof input.notebook_path === "string" ? input.notebook_path : undefined;
+    const fallbackPath = typeof input.path === "string" ? input.path : undefined;
+
+    if (tool.name === "Edit" || tool.name === "Write" || tool.name === "MultiEdit" || tool.name === "ApplyPatch") {
+      const rawPath = filePath || fallbackPath;
+      if (rawPath) {
+        touched.push(normalizeFilePath(rawPath, cwd));
+      }
+    }
+
+    if (tool.name === "NotebookEdit" && notebookPath) {
+      touched.push(normalizeFilePath(notebookPath, cwd));
+    }
+  }
+  return touched;
+}
+
 interface ClaudeError {
   session_id: string;
   error: string;
@@ -63,6 +100,7 @@ export function HeadlessChat({
   sessionName,
 }: HeadlessChatProps) {
   const { setClaudeBusy, updateActivity } = useSessionStore();
+  const { addTouchedFiles } = useTouchedFilesStore();
   const {
     thinkingEnabled,
     permissionMode,
@@ -154,6 +192,11 @@ export function HeadlessChat({
           return;
         }
 
+        const touchedFiles = extractTouchedFiles(content, cwd);
+        if (touchedFiles.length > 0) {
+          addTouchedFiles(sessionId, touchedFiles);
+        }
+
         // Filter out messages that only contain MCP tool calls (internal signaling)
         const onlyMcpTools = content.every(
           (block) =>
@@ -233,7 +276,9 @@ export function HeadlessChat({
     },
     [
       sessionId,
+      cwd,
       convexSessionId,
+      addTouchedFiles,
       addAssistantMessage,
       setTodos,
       setClaudeBusy,

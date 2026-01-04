@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDiffStore } from "../store/diffs";
 import { useSessionStore } from "../store/sessions";
 import { useWorkspaceStore } from "../store/workspaces";
 import { useCommentStore, Comment } from "../store/comments";
 import type { DiffLine, FileDiff } from "../store/api";
 import { fetchOrigin, getCommitSha, updateSessionBaseCommit } from "../store/api";
+import { useTouchedFilesStore } from "../store/touchedFiles";
 
 interface DiffViewerProps {
   onClose: () => void;
@@ -15,20 +16,85 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const { sessions, activeSessionId, setBaseCommit } = useSessionStore();
   const { workspaces } = useWorkspaceStore();
   const { comments, loadComments, clearComments, getCommentsForFile } = useCommentStore();
+  const { touchedBySession } = useTouchedFilesStore();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [resolvedBaseRef, setResolvedBaseRef] = useState<string | null>(null);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const workspace = workspaces.find((w) => w.id === activeSession?.workspaceId);
-  const worktreePath = activeSession?.cwd || activeSession?.finalCwd;
+  const worktreePath = activeSession?.finalCwd || activeSession?.cwd;
   const originBranch = workspace?.originBranch || "main";
+  const baseRef = resolvedBaseRef;
+  const touchedFiles = activeSessionId ? (touchedBySession[activeSessionId] || []) : [];
+  const touchedFileSet = useMemo(() => new Set(touchedFiles), [touchedFiles]);
 
-  // Use stored base_commit SHA if available, otherwise fall back to origin/branch
-  const baseRef = activeSession?.baseCommit || `origin/${originBranch}`;
+  const displaySummary = useMemo(() => {
+    if (!summary) return null;
+    // NOTE: Full-diff fallback when no AI-touched files is disabled for now.
+    // if (touchedFiles.length === 0) return summary;
+
+    const files = summary.files.filter((file) => touchedFileSet.has(file.path));
+    const totals = files.reduce(
+      (acc, file) => {
+        acc.insertions += file.insertions;
+        acc.deletions += file.deletions;
+        return acc;
+      },
+      { insertions: 0, deletions: 0 }
+    );
+
+    return {
+      ...summary,
+      files,
+      total_files: files.length,
+      total_insertions: totals.insertions,
+      total_deletions: totals.deletions,
+    };
+  }, [summary, touchedFiles.length, touchedFileSet]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!activeSession || !worktreePath) {
+      setResolvedBaseRef(null);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    if (activeSession.baseCommit) {
+      setResolvedBaseRef(activeSession.baseCommit);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    getCommitSha(worktreePath, "HEAD")
+      .then((commitSha) => {
+        if (!isActive) return;
+        setResolvedBaseRef(commitSha);
+        updateSessionBaseCommit(activeSession.id, commitSha).catch((err) => {
+          console.error("[DiffViewer] Failed to persist base commit:", err);
+        });
+        setBaseCommit(activeSession.id, commitSha);
+      })
+      .catch((err) => {
+        console.error("[DiffViewer] Failed to resolve base commit:", err);
+        if (!isActive) return;
+        setResolvedBaseRef(`origin/${originBranch}`);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [activeSession?.id, activeSession?.baseCommit, worktreePath, originBranch, setBaseCommit]);
 
   useEffect(() => {
     if (worktreePath) {
-      loadDiffSummary(worktreePath, baseRef);
       loadCurrentBranch(worktreePath);
+      if (baseRef) {
+        loadDiffSummary(worktreePath, baseRef);
+      }
     }
     if (activeSessionId) {
       loadComments(activeSessionId);
@@ -42,7 +108,7 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const handleToggleFile = (filePath: string) => {
     toggleFileExpanded(filePath);
     // Load file content if expanding and not already loaded
-    if (!expandedFiles.has(filePath) && !fileContents.has(filePath) && worktreePath) {
+    if (!expandedFiles.has(filePath) && !fileContents.has(filePath) && worktreePath && baseRef) {
       loadFileDiff(worktreePath, filePath, baseRef);
     }
   };
@@ -63,6 +129,7 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
 
       // Update local session store so UI reflects the change
       setBaseCommit(activeSession.id, newCommitSha);
+      setResolvedBaseRef(newCommitSha);
 
       // Clear and reload diff with new base
       clearDiff();
@@ -105,8 +172,8 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   }
 
   // Format the base reference for display (show short SHA if it's a commit)
-  const baseRefDisplay = activeSession?.baseCommit
-    ? activeSession.baseCommit.slice(0, 8)
+  const baseRefDisplay = baseRef
+    ? (/^[0-9a-f]{7,40}$/i.test(baseRef) ? baseRef.slice(0, 8) : baseRef)
     : `origin/${originBranch}`;
 
   return (
@@ -147,13 +214,18 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
         </div>
       )}
 
-      {summary && !isLoading && (
+      {displaySummary && !isLoading && (
         <>
           <div className="diff-summary">
             <span className="diff-stat">
-              <span className="diff-files">{summary.total_files} file{summary.total_files !== 1 ? 's' : ''}</span>
-              <span className="diff-insertions">+{summary.total_insertions}</span>
-              <span className="diff-deletions">-{summary.total_deletions}</span>
+              <span className="diff-files">{displaySummary.total_files} file{displaySummary.total_files !== 1 ? 's' : ''}</span>
+              <span className="diff-insertions">+{displaySummary.total_insertions}</span>
+              <span className="diff-deletions">-{displaySummary.total_deletions}</span>
+              {touchedFiles.length > 0 && (
+                <span className="diff-scope-badge" title="Showing AI-touched files">
+                  AI scope
+                </span>
+              )}
               {comments.filter(c => c.status === "open" && !c.parentId).length > 0 && (
                 <span className="diff-comments-count">
                   {comments.filter(c => c.status === "open" && !c.parentId).length} comment{comments.filter(c => c.status === "open" && !c.parentId).length !== 1 ? 's' : ''}
@@ -163,12 +235,12 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
           </div>
 
           <div className="diff-file-list">
-            {summary.files.length === 0 ? (
+            {displaySummary.files.length === 0 ? (
               <div className="diff-empty">
-                <p>No changes detected</p>
+                <p>{touchedFiles.length > 0 ? "No AI-touched changes detected" : "No changes detected"}</p>
               </div>
             ) : (
-              summary.files.map((file) => {
+              displaySummary.files.map((file) => {
                 const commentCount = getFileCommentCount(file.path);
                 return (
                   <div key={file.path} className="diff-file">

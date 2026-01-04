@@ -1,0 +1,63 @@
+{
+  "id": "US-029",
+  "title": "Diff Viewer: Stable Base + AI Touched Scope",
+  "type": "bug_fix",
+  "status": "done",
+  "requirements": [
+    {"item": "Diff viewer uses the resolved worktree path (finalCwd preferred) to avoid false deletions.", "done": true},
+    {"item": "If base_commit is missing, capture HEAD as base and persist it before diffing.", "done": true},
+    {"item": "Worktree setup script prefers origin/<branch> for new worktrees with fallback logic.", "done": true},
+    {"item": "Setup script receives origin branch from the UI when available.", "done": true},
+    {"item": "Track AI-touched files from edit/write tool calls and normalize to worktree-relative paths.", "done": true},
+    {"item": "Diff viewer scopes to AI-touched files when available and recalculates summary counts.", "done": true},
+    {"item": "Git diff commands ignore submodules and use consistent ref separation.", "done": true},
+    {"item": "AI-touched untracked files appear in the scoped diff.", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "Base commit is set on first diff view",
+      "steps": [
+        "Open a session without base_commit in the sessions table",
+        "Open the diff panel",
+        "Verify sessions.base_commit is now set to HEAD SHA",
+        "Confirm diff header shows short SHA instead of origin/<branch>"
+      ],
+      "done": true
+    },
+    {
+      "name": "AI touched diff scope",
+      "steps": [
+        "Trigger a Write tool call that creates a new file",
+        "Open diff panel and confirm the new file appears under AI scope",
+        "Expand the file and verify diff hunks match the content",
+        "Confirm unrelated files are not listed"
+      ],
+      "done": true
+    },
+    {
+      "name": "Worktree creation uses origin branch",
+      "steps": [
+        "Create a new session with a workspace",
+        "Inspect the worktree branch base (git merge-base with origin/<branch>)",
+        "Confirm no unexpected deletions are shown in diff"
+      ],
+      "done": true
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Diff viewer no longer shows mass deletions on new sessions created from worktrees.", "done": true},
+    {"item": "AI-touched file list drives diff scope without breaking full diff for empty lists.", "done": true},
+    {"item": "AI-touched untracked files show up in the diff scope.", "done": true},
+    {"item": "Base commit persists to DB and displays in the diff header when available.", "done": true}
+  ],
+  "files": [
+    "src/components/DiffViewer.tsx",
+    "src/components/HeadlessChat/index.tsx",
+    "src/components/SetupModal.tsx",
+    "src/store/sessions.ts",
+    "src/store/touchedFiles.ts",
+    "src-tauri/src/git.rs",
+    "scripts/start-session.sh",
+    "src/App.css"
+  ]
+}

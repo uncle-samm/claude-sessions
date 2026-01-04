@@ -37,6 +37,7 @@ interface SessionStore {
   setActiveSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
   setPhase: (id: string, phase: SessionPhase) => void;
+  setCwd: (id: string, cwd: string) => void;
   appendScriptOutput: (id: string, output: string) => void;
   incrementUnread: (id: string) => void;
   clearUnread: (id: string) => void;
@@ -156,6 +157,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
               finalCwd: phase.type === "ready" ? phase.finalCwd : s.finalCwd,
             }
           : s
+      ),
+    }));
+  },
+
+  setCwd: (id: string, cwd: string) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, cwd, finalCwd: cwd } : s
       ),
     }));
   },

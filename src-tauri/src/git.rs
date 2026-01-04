@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileDiff {
     pub path: String,
-    pub old_path: Option<String>,  // For renames
-    pub status: String,            // "added", "modified", "deleted", "renamed"
+    pub old_path: Option<String>, // For renames
+    pub status: String,           // "added", "modified", "deleted", "renamed"
     pub insertions: u32,
     pub deletions: u32,
     pub hunks: Vec<DiffHunk>,
@@ -24,7 +25,7 @@ pub struct DiffHunk {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffLine {
-    pub line_type: String,  // "context", "add", "delete"
+    pub line_type: String, // "context", "add", "delete"
     pub old_line: Option<u32>,
     pub new_line: Option<u32>,
     pub content: String,
@@ -38,6 +39,83 @@ pub struct DiffSummary {
     pub total_files: u32,
 }
 
+fn diff_status_ok(status: ExitStatus) -> bool {
+    matches!(status.code(), Some(0) | Some(1))
+}
+
+fn get_untracked_files(worktree_path: &Path) -> Result<Vec<String>, String> {
+    let output = Command::new("git")
+        .current_dir(worktree_path)
+        .args(["ls-files", "--others", "--exclude-standard"])
+        .output()
+        .map_err(|e| format!("Failed to list untracked files: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git ls-files failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(String::from)
+        .collect())
+}
+
+fn is_untracked_file(worktree_path: &Path, file_path: &str) -> Result<bool, String> {
+    let output = Command::new("git")
+        .current_dir(worktree_path)
+        .args([
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "--",
+            file_path,
+        ])
+        .output()
+        .map_err(|e| format!("Failed to check untracked file: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git ls-files failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(!stdout.trim().is_empty())
+}
+
+fn get_untracked_numstat(worktree_path: &Path, file_path: &str) -> Result<(u32, u32), String> {
+    let output = Command::new("git")
+        .current_dir(worktree_path)
+        .args(["diff", "--numstat", "--no-index", "/dev/null", file_path])
+        .output()
+        .map_err(|e| format!("Failed to diff untracked file: {}", e))?;
+
+    if !diff_status_ok(output.status) {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git diff --no-index failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line = stdout.lines().find(|l| !l.trim().is_empty());
+    if let Some(line) = line {
+        let parts: Vec<&str> = line.split('\t').collect();
+        let insertions = parts
+            .get(0)
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let deletions = parts
+            .get(1)
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        return Ok((insertions, deletions));
+    }
+
+    Ok((0, 0))
+}
+
 /// Get a summary of changes between the worktree and a base branch
 pub fn get_diff_summary(worktree_path: &str, base_branch: &str) -> Result<DiffSummary, String> {
     let path = Path::new(worktree_path);
@@ -45,7 +123,7 @@ pub fn get_diff_summary(worktree_path: &str, base_branch: &str) -> Result<DiffSu
     // Get list of changed files with stats
     let output = Command::new("git")
         .current_dir(path)
-        .args(["diff", "--numstat", base_branch])
+        .args(["diff", "--numstat", "--ignore-submodules", base_branch])
         .output()
         .map_err(|e| format!("Failed to run git diff: {}", e))?;
 
@@ -56,6 +134,7 @@ pub fn get_diff_summary(worktree_path: &str, base_branch: &str) -> Result<DiffSu
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut files = Vec::new();
+    let mut file_set = HashSet::new();
     let mut total_insertions = 0u32;
     let mut total_deletions = 0u32;
 
@@ -84,7 +163,25 @@ pub fn get_diff_summary(worktree_path: &str, base_branch: &str) -> Result<DiffSu
                 deletions,
                 hunks: Vec::new(), // Hunks loaded separately
             });
+            file_set.insert(files.last().unwrap().path.clone());
         }
+    }
+
+    for file_path in get_untracked_files(path)? {
+        if file_set.contains(&file_path) {
+            continue;
+        }
+        let (insertions, deletions) = get_untracked_numstat(path, &file_path)?;
+        total_insertions += insertions;
+        total_deletions += deletions;
+        files.push(FileDiff {
+            path: file_path,
+            old_path: None,
+            status: "added".to_string(),
+            insertions,
+            deletions,
+            hunks: Vec::new(),
+        });
     }
 
     Ok(DiffSummary {
@@ -96,10 +193,25 @@ pub fn get_diff_summary(worktree_path: &str, base_branch: &str) -> Result<DiffSu
 }
 
 /// Get file status (added, modified, deleted, renamed)
-fn get_file_status(worktree_path: &Path, file_path: &str, base_branch: &str) -> Result<String, String> {
+fn get_file_status(
+    worktree_path: &Path,
+    file_path: &str,
+    base_branch: &str,
+) -> Result<String, String> {
+    if is_untracked_file(worktree_path, file_path)? {
+        return Ok("added".to_string());
+    }
+
     let output = Command::new("git")
         .current_dir(worktree_path)
-        .args(["diff", "--name-status", base_branch, "--", file_path])
+        .args([
+            "diff",
+            "--name-status",
+            "--ignore-submodules",
+            base_branch,
+            "--",
+            file_path,
+        ])
         .output()
         .map_err(|e| format!("Failed to get file status: {}", e))?;
 
@@ -116,13 +228,40 @@ fn get_file_status(worktree_path: &Path, file_path: &str, base_branch: &str) -> 
 }
 
 /// Get detailed diff for a specific file with hunks
-pub fn get_file_diff(worktree_path: &str, file_path: &str, base_branch: &str) -> Result<FileDiff, String> {
+pub fn get_file_diff(
+    worktree_path: &str,
+    file_path: &str,
+    base_branch: &str,
+) -> Result<FileDiff, String> {
     let path = Path::new(worktree_path);
+
+    if is_untracked_file(path, file_path)? {
+        let output = Command::new("git")
+            .current_dir(path)
+            .args(["diff", "-U3", "--no-index", "/dev/null", file_path])
+            .output()
+            .map_err(|e| format!("Failed to get file diff: {}", e))?;
+
+        if !diff_status_ok(output.status) {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("git diff --no-index failed: {}", stderr));
+        }
+
+        let diff_content = String::from_utf8_lossy(&output.stdout);
+        return parse_unified_diff(&diff_content, file_path);
+    }
 
     // Get the unified diff for this file
     let output = Command::new("git")
         .current_dir(path)
-        .args(["diff", "-U3", base_branch, "--", file_path])
+        .args([
+            "diff",
+            "-U3",
+            "--ignore-submodules",
+            base_branch,
+            "--",
+            file_path,
+        ])
         .output()
         .map_err(|e| format!("Failed to get file diff: {}", e))?;
 

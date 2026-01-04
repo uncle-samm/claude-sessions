@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 :root {
   --app-font: "Sora";
@@ -1580,6 +1579,17 @@ body {
 
 .diff-deletions {
   color: var(--app-danger);
+}
+
+.diff-scope-badge {
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-panel-2);
 }
 
 .diff-file-list {

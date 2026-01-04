@@ -5,6 +5,7 @@ import { spawn, IPty } from "tauri-pty";
 import { Session, useSessionStore } from "../store/sessions";
 import { useSettingsStore } from "../store/settings";
 import { configureWorktree, updateSessionCwd, getWorkspaces, getCommitSha, updateSessionBaseCommit } from "../store/api";
+import { useWorkspaceStore } from "../store/workspaces";
 
 const CWD_MARKER = "___CLAUDE_SESSIONS_CWD_MARKER___";
 
@@ -14,8 +15,9 @@ interface SetupModalProps {
 }
 
 export function SetupModal({ session, isActive }: SetupModalProps) {
-  const { setPhase, removeSession, setBaseCommit } = useSessionStore();
+  const { setPhase, removeSession, setBaseCommit, setCwd } = useSessionStore();
   const debugPauseAfterSetup = useSettingsStore((s) => s.debugPauseAfterSetup);
+  const { workspaces } = useWorkspaceStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -53,6 +55,8 @@ export function SetupModal({ session, isActive }: SetupModalProps) {
     outputRef.current = "";
     finalCwdRef.current = "";
 
+    const workspace = workspaces.find((w) => w.id === session.workspaceId);
+
     // Create terminal for script output
     const terminal = new XTerm({
       cursorBlink: false,
@@ -80,7 +84,14 @@ export function SetupModal({ session, isActive }: SetupModalProps) {
     try {
       // Build the script command with cwd marker at the end
       // Export worktree name as env var, source the script, then output marker and pwd
-      const envExport = session.worktreeName ? `export CLAUDE_WORKTREE_NAME="${session.worktreeName}" && ` : "";
+      const envParts: string[] = [];
+      if (session.worktreeName) {
+        envParts.push(`export CLAUDE_WORKTREE_NAME="${session.worktreeName}"`);
+      }
+      if (workspace?.originBranch) {
+        envParts.push(`export CLAUDE_ORIGIN_BRANCH="${workspace.originBranch}"`);
+      }
+      const envExport = envParts.length > 0 ? `${envParts.join(" && ")} && ` : "";
       const scriptCmd = `${envExport}source "${session.scriptPath}" && echo "${CWD_MARKER}" && pwd && exit 0`;
 
       const pty = await spawn("/bin/zsh", ["-c", scriptCmd], {
@@ -128,6 +139,8 @@ export function SetupModal({ session, isActive }: SetupModalProps) {
                 configureWorktree(finalCwd, session.id)
               ])
                 .then(async () => {
+                  setCwd(session.id, finalCwd);
+
                   // Capture the base commit SHA for stable diffs
                   if (session.workspaceId) {
                     try {
