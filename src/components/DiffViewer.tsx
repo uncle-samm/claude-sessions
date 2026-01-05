@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { watch, type UnwatchFn } from "@tauri-apps/plugin-fs";
 import { useDiffStore } from "../store/diffs";
 import { useSessionStore } from "../store/sessions";
 import { useWorkspaceStore } from "../store/workspaces";
 import { useCommentStore, Comment } from "../store/comments";
 import type { DiffLine, FileDiff } from "../store/api";
 import { fetchOrigin, getCommitSha, updateSessionBaseCommit } from "../store/api";
-import { useTouchedFilesStore } from "../store/touchedFiles";
 import { escapeHtml, useHighlightedLines } from "./HeadlessChat/HighlightedCode";
 import { getLanguageFromFilename } from "./HeadlessChat/highlighting";
 
@@ -18,7 +18,6 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const { sessions, activeSessionId, setBaseCommit } = useSessionStore();
   const { workspaces } = useWorkspaceStore();
   const { comments, loadComments, clearComments, getCommentsForFile } = useCommentStore();
-  const { touchedBySession } = useTouchedFilesStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [resolvedBaseRef, setResolvedBaseRef] = useState<string | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(80);
@@ -31,32 +30,9 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const originBranch = workspace?.originBranch || "main";
   const baseRef = resolvedBaseRef;
   const diffCacheKey = activeSessionId && baseRef ? `${activeSessionId}:${baseRef}` : null;
-  const touchedFiles = activeSessionId ? (touchedBySession[activeSessionId] || []) : [];
-  const touchedFileSet = useMemo(() => new Set(touchedFiles), [touchedFiles]);
 
-  const displaySummary = useMemo(() => {
-    if (!summary) return null;
-    // NOTE: Full-diff fallback when no AI-touched files is disabled for now.
-    // if (touchedFiles.length === 0) return summary;
-
-    const files = summary.files.filter((file) => touchedFileSet.has(file.path));
-    const totals = files.reduce(
-      (acc, file) => {
-        acc.insertions += file.insertions;
-        acc.deletions += file.deletions;
-        return acc;
-      },
-      { insertions: 0, deletions: 0 }
-    );
-
-    return {
-      ...summary,
-      files,
-      total_files: files.length,
-      total_insertions: totals.insertions,
-      total_deletions: totals.deletions,
-    };
-  }, [summary, touchedFiles.length, touchedFileSet]);
+  // Show all changes compared to base_commit (no AI scope filtering)
+  const displaySummary = summary;
 
   useEffect(() => {
     let isActive = true;
@@ -122,6 +98,36 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
     if (!displaySummary) return;
     setVisibleFileCount(80);
   }, [displaySummary?.total_files, diffCacheKey]);
+
+  // Watch for file changes and refresh diff with debounce
+  useEffect(() => {
+    if (!worktreePath || !baseRef || !diffCacheKey) return;
+
+    let unwatchFn: UnwatchFn | null = null;
+
+    const setupWatcher = async () => {
+      try {
+        unwatchFn = await watch(
+          worktreePath,
+          () => {
+            // Reload diff on file changes (debounced by Tauri)
+            loadDiffSummary(worktreePath, baseRef, diffCacheKey, { force: true });
+          },
+          { recursive: true, delayMs: 500 }
+        );
+      } catch (err) {
+        console.error("[DiffViewer] Failed to set up file watcher:", err);
+      }
+    };
+
+    setupWatcher();
+
+    return () => {
+      if (unwatchFn) {
+        unwatchFn();
+      }
+    };
+  }, [worktreePath, baseRef, diffCacheKey, loadDiffSummary]);
 
   const handleToggleFile = (filePath: string) => {
     if (!diffCacheKey) return;
@@ -199,8 +205,8 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const remainingFiles = displaySummary ? displaySummary.files.length - visibleFileCount : 0;
 
   return (
-    <div className="diff-viewer">
-      <div className="diff-header">
+    <div className="diff-viewer" data-testid="diff-panel">
+      <div className="diff-header" data-testid="diff-header">
         <div className="diff-title">
           <h3>Changes</h3>
           <span className="diff-branch-info">
@@ -243,11 +249,6 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
               <span className="diff-files">{displaySummary.total_files} file{displaySummary.total_files !== 1 ? 's' : ''}</span>
               <span className="diff-insertions">+{displaySummary.total_insertions}</span>
               <span className="diff-deletions">-{displaySummary.total_deletions}</span>
-              {touchedFiles.length > 0 && (
-                <span className="diff-scope-badge" title="Showing AI-touched files">
-                  AI scope
-                </span>
-              )}
               {comments.filter(c => c.status === "open" && !c.parentId).length > 0 && (
                 <span className="diff-comments-count">
                   {comments.filter(c => c.status === "open" && !c.parentId).length} comment{comments.filter(c => c.status === "open" && !c.parentId).length !== 1 ? 's' : ''}
@@ -256,16 +257,16 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
             </span>
           </div>
 
-          <div className="diff-file-list">
+          <div className="diff-file-list" data-testid="diff-file-list">
             {displaySummary.files.length === 0 ? (
               <div className="diff-empty">
-                <p>{touchedFiles.length > 0 ? "No AI-touched changes detected" : "No changes detected"}</p>
+                <p>No changes detected</p>
               </div>
             ) : (
               visibleFiles.map((file) => {
                 const commentCount = getFileCommentCount(file.path);
                 return (
-                  <div key={file.path} className="diff-file">
+                  <div key={file.path} className="diff-file" data-testid="diff-file-item">
                     <div
                       className={`diff-file-header ${expandedFiles.has(file.path) ? 'expanded' : ''}`}
                       onClick={() => handleToggleFile(file.path)}
@@ -373,7 +374,7 @@ function DiffHunkBlock({
   const highlightedLines = useHighlightedLines(hunkContent, language, { defer: true });
 
   return (
-    <div className="diff-hunk">
+    <div className="diff-hunk" data-testid="diff-hunk">
       <div className="diff-hunk-header">{hunk.header}</div>
       <div className="diff-lines">
         {hunk.lines.map((line, lineIndex) => (

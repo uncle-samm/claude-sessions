@@ -519,7 +519,7 @@ export function HeadlessChat({
   const isInitializing = sessionLoading || messagesLoading;
 
   return (
-    <div className="headless-chat">
+    <div className="headless-chat" data-testid="chat-container">
       <div className="headless-chat-header">
         <div className="header-title">
           <span className="header-icon" aria-hidden="true" />

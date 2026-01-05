@@ -11,6 +11,7 @@
     "fs:default",
     "fs:read-all",
     "fs:allow-exists",
+    "fs:allow-watch",
     "fs:scope-home-recursive",
     {
       "identifier": "shell:allow-execute",

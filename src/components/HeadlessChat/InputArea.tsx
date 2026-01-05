@@ -76,7 +76,7 @@ export function InputArea({ onSubmit, disabled, placeholder }: InputAreaProps) {
   };
 
   return (
-    <div className="input-area">
+    <div className="input-area" data-testid="input-area">
       <div className="input-container">
         <textarea
           ref={textareaRef}
@@ -87,12 +87,14 @@ export function InputArea({ onSubmit, disabled, placeholder }: InputAreaProps) {
           disabled={disabled}
           rows={1}
           className="input-textarea"
+          data-testid="input-textarea"
         />
         <button
           onClick={handleSubmit}
           disabled={disabled || !message.trim()}
           className="input-submit-btn"
           title="Send message"
+          data-testid="send-btn"
         >
           <svg
             viewBox="0 0 24 24"

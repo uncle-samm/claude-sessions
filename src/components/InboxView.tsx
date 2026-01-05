@@ -74,7 +74,7 @@ export function InboxView({ onClose }: InboxViewProps) {
   };
 
   return (
-    <div className="inbox-view">
+    <div className="inbox-view" data-testid="inbox-view">
       <div className="inbox-view-header">
         <h3>Inbox</h3>
         {unreadCount > 0 && (
@@ -107,6 +107,7 @@ export function InboxView({ onClose }: InboxViewProps) {
                 key={message.id}
                 className={`inbox-view-message ${!message.readAt ? "unread" : ""} ${isMessageExpanded ? "expanded" : ""} ${sessionExists ? "has-session" : "no-session"}`}
                 onClick={() => handleMessageClick(message)}
+                data-testid="inbox-message"
               >
                 <div className="inbox-view-message-header">
                   <div className="inbox-view-message-info">

@@ -98,7 +98,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" data-testid="sidebar">
       {/* App Title */}
       <div className="sidebar-title">
         <span className="title-text">Agent Manager</span>
@@ -109,6 +109,7 @@ export function Sidebar() {
       <div
         className={`sidebar-inbox-row ${showInboxView ? 'active' : ''}`}
         onClick={() => setShowInboxView(!showInboxView)}
+        data-testid="inbox-btn"
       >
         <div className="inbox-icon-wrapper">
           <svg className="inbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -116,7 +117,7 @@ export function Sidebar() {
             <polyline points="3,7 12,13 21,7" />
           </svg>
           {unreadCount > 0 && (
-            <span className="inbox-badge">{unreadCount}</span>
+            <span className="inbox-badge" data-testid="inbox-badge">{unreadCount}</span>
           )}
         </div>
         <span className="inbox-label">Inbox</span>
@@ -134,13 +135,13 @@ export function Sidebar() {
             <span>Workspaces</span>
           </div>
 
-          <div className="workspace-list">
+          <div className="workspace-list" data-testid="workspace-list">
             {workspaces.map((workspace) => {
               const isExpanded = expandedWorkspaces.has(workspace.id);
               const workspaceSessions = getSessionsForWorkspace(workspace.id);
 
               return (
-                <div key={workspace.id} className="workspace-section">
+                <div key={workspace.id} className="workspace-section" data-testid="workspace-item">
                   <div className="workspace-header" onClick={() => toggleExpanded(workspace.id)}>
                     <span className={`chevron ${isExpanded ? "expanded" : ""}`}>›</span>
                     <span className="workspace-name">{workspace.name}</span>
@@ -189,6 +190,7 @@ export function Sidebar() {
                         <li
                           key={session.id}
                           className={`session-item ${session.id === activeSessionId ? "active" : ""} ${isSettingUp ? "setting-up" : ""} ${hasError ? "has-error" : ""} ${isIdle ? "session-idle" : ""}`}
+                          data-testid="session-item"
                           onClick={() => {
                             // Activate idle sessions before selecting
                             if (isIdle) {
@@ -199,8 +201,8 @@ export function Sidebar() {
                           }}
                           onDoubleClick={(e) => handleDoubleClick(e, session)}
                         >
-                          {isSettingUp && <span className="session-spinner"></span>}
-                          {isBusy && <span className="session-busy-spinner"></span>}
+                          {isSettingUp && <span className="session-spinner" data-testid="setup-spinner"></span>}
+                          {isBusy && <span className="session-busy-spinner" data-testid="busy-spinner"></span>}
                           {hasError && <span className="session-error-icon">!</span>}
                           {editingId === session.id ? (
                             <input
@@ -214,7 +216,7 @@ export function Sidebar() {
                               onClick={(e) => e.stopPropagation()}
                             />
                           ) : (
-                            <span className="session-name">{isSettingUp ? "Setting up..." : isIdle ? `${session.name}` : session.name}</span>
+                            <span className="session-name" data-testid="session-name">{isSettingUp ? "Setting up..." : isIdle ? `${session.name}` : session.name}</span>
                           )}
                           {(() => {
                             const { natural, manual } = getUnreadCountForSession(session.id);

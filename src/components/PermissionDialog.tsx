@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { useSettingsStore } from "../store/settings";
 import "./PermissionDialog.css";
 
 interface PermissionRequest {
@@ -86,9 +87,16 @@ function getDescription(toolName: string, _input: Record<string, unknown>): stri
   return `Execute the ${toolName} tool`;
 }
 
+// Tools that are file edit operations
+const FILE_EDIT_TOOLS = new Set(["Write", "Edit", "NotebookEdit"]);
+
 export function PermissionDialog() {
   const [request, setRequest] = useState<PermissionRequest | null>(null);
   const [isResponding, setIsResponding] = useState(false);
+  const setPermissionMode = useSettingsStore((s) => s.setPermissionMode);
+
+  // Check if this is a file edit tool
+  const isFileEditTool = request ? FILE_EDIT_TOOLS.has(request.tool_name) : false;
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -100,13 +108,18 @@ export function PermissionDialog() {
         await respond("deny");
       } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        await respond("allow", true);
+        // For file edit tools, switch to acceptEdits mode; otherwise always allow for project
+        if (isFileEditTool) {
+          await handleAlwaysAllowEdits();
+        } else {
+          await respond("allow", true);
+        }
       } else if (e.key === "Enter") {
         e.preventDefault();
         await respond("allow", false);
       }
     },
-    [request, isResponding]
+    [request, isResponding, isFileEditTool]
   );
 
   // Listen for permission requests from Tauri
@@ -147,6 +160,30 @@ export function PermissionDialog() {
     }
   };
 
+  // Handle "Always allow edits" - switch to acceptEdits mode and allow
+  const handleAlwaysAllowEdits = async () => {
+    if (!request || isResponding) return;
+
+    setIsResponding(true);
+    try {
+      // Switch to acceptEdits mode
+      setPermissionMode("acceptEdits");
+
+      // Allow this request
+      await invoke("respond_to_permission", {
+        requestId: request.request_id,
+        behavior: "allow",
+        message: null,
+        alwaysAllow: null,
+      });
+    } catch (error) {
+      console.error("[PermissionDialog] Failed to respond:", error);
+    } finally {
+      setRequest(null);
+      setIsResponding(false);
+    }
+  };
+
   if (!request) return null;
 
   const { verb } = getToolDisplay(request.tool_name);
@@ -155,16 +192,16 @@ export function PermissionDialog() {
 
   return (
     <div className="permission-overlay">
-      <div className="permission-dialog">
+      <div className="permission-dialog" data-testid="permission-dialog">
         <div className="permission-header">
-          <span className="permission-title">
+          <span className="permission-title" data-testid="permission-tool-name">
             Allow Claude to <strong>{verb}</strong>?
           </span>
         </div>
 
         <div className="permission-description">{description}</div>
 
-        <div className="permission-preview">
+        <div className="permission-preview" data-testid="permission-preview">
           <pre>{formattedInput}</pre>
         </div>
 
@@ -173,6 +210,7 @@ export function PermissionDialog() {
             className="permission-btn permission-btn-deny"
             onClick={() => respond("deny")}
             disabled={isResponding}
+            data-testid="permission-deny-btn"
           >
             Deny
             <span className="permission-shortcut">Esc</span>
@@ -180,10 +218,11 @@ export function PermissionDialog() {
 
           <button
             className="permission-btn permission-btn-always"
-            onClick={() => respond("allow", true)}
+            onClick={isFileEditTool ? handleAlwaysAllowEdits : () => respond("allow", true)}
             disabled={isResponding}
+            data-testid="permission-always-btn"
           >
-            Always allow for project
+            {isFileEditTool ? "Always allow edits" : "Always allow for project"}
             <span className="permission-shortcut">⌘↵</span>
           </button>
 
@@ -191,6 +230,7 @@ export function PermissionDialog() {
             className="permission-btn permission-btn-allow"
             onClick={() => respond("allow", false)}
             disabled={isResponding}
+            data-testid="permission-allow-btn"
           >
             Allow once
             <span className="permission-shortcut">↵</span>

@@ -91,7 +91,7 @@ function ReadTool({ input, result }: { input: Record<string, unknown>; result?: 
   const hasResult = result !== undefined;
 
   return (
-    <div className="tool-read">
+    <div className="tool-read" data-testid="tool-call-read">
       <ToolResultHeader label="Read Result" hasResult={hasResult} />
       <div className="tool-header-row">
         <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
@@ -169,7 +169,7 @@ function EditTool({ input, result }: { input: Record<string, unknown>; result?: 
   const hasDiff = oldString.trim().length > 0 || newString.trim().length > 0;
 
   return (
-    <div className="tool-edit">
+    <div className="tool-edit" data-testid="tool-call-edit">
       <ToolResultHeader label="Edit Result" hasResult={hasResult} />
       <div className="tool-header-row">
         <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
@@ -205,7 +205,7 @@ function BashTool({ input, result, isError }: { input: Record<string, unknown>; 
   const hasResult = result !== undefined;
 
   return (
-    <div className={`tool-bash ${isError ? "has-error" : ""}`}>
+    <div className={`tool-bash ${isError ? "has-error" : ""}`} data-testid="tool-call-bash">
       <ToolResultHeader label={isError ? "Bash Error" : "Bash Result"} hasResult={hasResult && !isError} />
       <div className="tool-bash-header" onClick={() => setExpanded(!expanded)}>
         <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
@@ -249,7 +249,7 @@ function WriteTool({ input, result }: { input: Record<string, unknown>; result?:
   const hasContent = content.trim().length > 0;
 
   return (
-    <div className="tool-write">
+    <div className="tool-write" data-testid="tool-call-write">
       <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
         <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
         <span className="tool-icon tool-icon-write" aria-hidden="true" />
@@ -283,7 +283,7 @@ function GlobTool({ input, result }: { input: Record<string, unknown>; result?: 
   const hasResult = result !== undefined;
 
   return (
-    <div className="tool-glob">
+    <div className="tool-glob" data-testid="tool-call-glob">
       <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
         <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
         <span className="tool-icon tool-icon-search" aria-hidden="true" />
@@ -317,7 +317,7 @@ function GrepTool({ input, result }: { input: Record<string, unknown>; result?: 
   const hasResult = result !== undefined;
 
   return (
-    <div className="tool-grep">
+    <div className="tool-grep" data-testid="tool-call-grep">
       <div className="tool-file-path" onClick={() => setExpanded(!expanded)}>
         <span className={`tool-chevron ${expanded ? "expanded" : ""}`} aria-hidden="true" />
         <span className="tool-icon tool-icon-search" aria-hidden="true" />

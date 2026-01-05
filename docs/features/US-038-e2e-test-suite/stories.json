@@ -1,0 +1,54 @@
+{
+  "id": "US-038",
+  "title": "Comprehensive E2E Test Suite",
+  "type": "feature",
+  "status": "done",
+  "description": "Create comprehensive E2E tests for all features to prevent regressions. Tests use Tauri MCP tools for UI automation and SQLite queries for state verification.",
+  "requirements": [
+    {"item": "Test infrastructure with utilities for DB queries and UI interaction", "done": true},
+    {"item": "Session management tests (create, rename, delete, switch, persist)", "done": true},
+    {"item": "Headless chat tests (send, markdown, code blocks, multi-turn, resume)", "done": true},
+    {"item": "Tool call display tests (Read, Write, Edit, Bash, Glob, Grep)", "done": true},
+    {"item": "Permission system tests (dialog, deny, allow, always allow, shortcuts)", "done": true},
+    {"item": "Diff viewer tests (base commit, changes, watcher, expand, untracked)", "done": true},
+    {"item": "Sidebar tests (workspaces, sessions, spinner, inbox indicator)", "done": true},
+    {"item": "Settings tests (permission mode, thinking, todo, verbose, persist)", "done": true},
+    {"item": "Inbox tests (notify_ready, badge, view, mark read)", "done": true},
+    {"item": "Error handling tests (invalid prompt, network, sidecar crash)", "done": true},
+    {"item": "Integration tests (full workflow, lifecycle, multiple sessions)", "done": true},
+    {"item": "Data-testid attributes on all interactive components", "done": true}
+  ],
+  "testSuites": {
+    "sessions": 5,
+    "chat": 5,
+    "tools": 6,
+    "permissions": 7,
+    "diff": 6,
+    "sidebar": 6,
+    "settings": 5,
+    "inbox": 4,
+    "errors": 3,
+    "integration": 3
+  },
+  "totalTests": 50,
+  "acceptanceCriteria": [
+    {"item": "All 50 E2E tests documented with clear steps", "done": true},
+    {"item": "Test utilities provide DB and UI helpers", "done": true},
+    {"item": "Components have data-testid for reliable selection", "done": true},
+    {"item": "Tests can be run via Tauri MCP tools", "done": true},
+    {"item": "Initial verification tests pass", "done": true}
+  ],
+  "files": [
+    "e2e/utils.ts",
+    "e2e/runner.ts",
+    "e2e/TESTS.md",
+    "src/components/Sidebar.tsx",
+    "src/components/PermissionDialog.tsx",
+    "src/components/DiffViewer.tsx",
+    "src/components/InboxView.tsx",
+    "src/components/HeadlessChat/index.tsx",
+    "src/components/HeadlessChat/InputArea.tsx",
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/components/HeadlessChat/ToolCall.tsx"
+  ]
+}

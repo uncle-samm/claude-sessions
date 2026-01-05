@@ -90,7 +90,7 @@ function Message({ message, toolResults }: { message: ChatMessage; toolResults: 
       : "This message contains no visible content.";
 
   return (
-    <div className={`chat-message chat-message-${message.type}`}>
+    <div className={`chat-message chat-message-${message.type}`} data-testid={`${message.type}-message`}>
       <div className="message-content">
         {showMeta && (
           <div className="message-meta">
@@ -147,7 +147,7 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
   });
 
   return (
-    <div className="message-list" ref={containerRef}>
+    <div className="message-list" ref={containerRef} data-testid="message-list">
       {displayMessages.length === 0 && !isLoading && (
         <div className="message-list-empty">
           <div className="empty-card">

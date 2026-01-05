@@ -1,0 +1,44 @@
+{
+  "id": "US-037",
+  "title": "UI Polish: Subtle permission box styling",
+  "type": "bug_fix",
+  "status": "in_progress",
+  "requirements": [
+    {
+      "item": "Restyle the permission prompt to feel like an inline card instead of a large modal.",
+      "done": true
+    },
+    {
+      "item": "Match the compact layout cues from the reference while staying more subtle.",
+      "done": true
+    },
+    {
+      "item": "Preserve existing permission actions and accessibility affordances.",
+      "done": true
+    }
+  ],
+  "e2eTests": [
+    {
+      "name": "Permission prompt layout",
+      "steps": [
+        "Trigger a permission request in the UI.",
+        "Verify the prompt appears as an inline card with subdued shadow and lighter emphasis.",
+        "Confirm buttons are present and functional."
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "item": "The permission box no longer reads as a large modal and feels visually subtle.",
+      "done": false
+    },
+    {
+      "item": "The prompt layout resembles the reference (card, title, command field, actions) but toned down.",
+      "done": false
+    }
+  ],
+  "files": [
+    "src/components/PermissionDialog.css"
+  ]
+}
