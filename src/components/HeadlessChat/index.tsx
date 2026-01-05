@@ -56,27 +56,66 @@ function normalizeFilePath(rawPath: string, cwd: string): string {
   if (cleaned.startsWith("./")) {
     cleaned = cleaned.slice(2);
   }
-  return cleaned;
+  cleaned = cleaned.replace(/^\/+/, "");
+  const parts = cleaned.split("/");
+  const normalizedParts: string[] = [];
+  for (const part of parts) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (normalizedParts.length > 0) {
+        normalizedParts.pop();
+      }
+      continue;
+    }
+    normalizedParts.push(part);
+  }
+  return normalizedParts.join("/");
+}
+
+// Extract base tool name from potential MCP-prefixed name
+// e.g., "mcp__acp__Edit" -> "edit", "Edit" -> "edit"
+function extractBaseToolName(name: string): string {
+  // Strip MCP prefix pattern: mcp__<server>__<tool>
+  const mcpMatch = name.match(/^mcp__[^_]+__(.+)$/);
+  const baseName = mcpMatch ? mcpMatch[1] : name;
+  return baseName.toLowerCase().replace(/[^a-z]/g, "");
 }
 
 function extractTouchedFiles(blocks: ContentBlock[], cwd: string): string[] {
   const touched: string[] = [];
+  const writeToolNames = new Set([
+    "edit",
+    "write",
+    "multiedit",
+    "applypatch",
+    "notebookedit",
+    "notebookwrite",
+    "editfile",
+    "writefile",
+  ]);
   for (const block of blocks) {
     if (block.type !== "tool_use") continue;
     const tool = block as ToolUseContent;
     const input = tool.input as Record<string, unknown>;
-    const filePath = typeof input.file_path === "string" ? input.file_path : undefined;
-    const notebookPath = typeof input.notebook_path === "string" ? input.notebook_path : undefined;
-    const fallbackPath = typeof input.path === "string" ? input.path : undefined;
+    const filePath =
+      (typeof input.file_path === "string" ? input.file_path : undefined) ||
+      (typeof input.filePath === "string" ? input.filePath : undefined) ||
+      (typeof input.filepath === "string" ? input.filepath : undefined) ||
+      (typeof input.path === "string" ? input.path : undefined) ||
+      (typeof input.file === "string" ? input.file : undefined) ||
+      (typeof input.filename === "string" ? input.filename : undefined);
+    const notebookPath =
+      (typeof input.notebook_path === "string" ? input.notebook_path : undefined) ||
+      (typeof input.notebookPath === "string" ? input.notebookPath : undefined);
+    const normalizedToolName = extractBaseToolName(tool.name);
+    const isWriteTool = writeToolNames.has(normalizedToolName);
 
-    if (tool.name === "Edit" || tool.name === "Write" || tool.name === "MultiEdit" || tool.name === "ApplyPatch") {
-      const rawPath = filePath || fallbackPath;
-      if (rawPath) {
-        touched.push(normalizeFilePath(rawPath, cwd));
-      }
+    if (isWriteTool && filePath) {
+      touched.push(normalizeFilePath(filePath, cwd));
+      continue;
     }
 
-    if (tool.name === "NotebookEdit" && notebookPath) {
+    if ((normalizedToolName === "notebookedit" || normalizedToolName === "notebookwrite") && notebookPath) {
       touched.push(normalizeFilePath(notebookPath, cwd));
     }
   }
@@ -131,6 +170,7 @@ export function HeadlessChat({
   const [claudeSessionId, setClaudeSessionId] = useState<string | null>(null);
 
   const unlistenRefs = useRef<UnlistenFn[]>([]);
+  const touchedSeededSession = useRef<string | null>(null);
 
   // Convert Convex messages to ChatMessage format for MessageList
   const chatMessages = messages.map((msg) => ({
@@ -148,6 +188,22 @@ export function HeadlessChat({
     status: todo.status,
     priority: todo.priority,
   }));
+
+  useEffect(() => {
+    if (messagesLoading || !sessionId) return;
+    // Only skip if we've already seeded AND we have messages (to avoid skipping when messages haven't loaded yet)
+    if (touchedSeededSession.current === sessionId && messages.length > 0) return;
+
+    const allBlocks = messages.flatMap((msg) => msg.content);
+    const touchedFiles = extractTouchedFiles(allBlocks, cwd);
+    if (touchedFiles.length > 0) {
+      addTouchedFiles(sessionId, touchedFiles);
+    }
+    // Only mark as seeded if we have messages (so we re-run when messages load)
+    if (messages.length > 0) {
+      touchedSeededSession.current = sessionId;
+    }
+  }, [messagesLoading, messages, sessionId, cwd, addTouchedFiles]);
 
   // Handle incoming Claude messages - save to Convex for real-time sync
   const handleClaudeMessage = useCallback(

@@ -1,0 +1,41 @@
+{
+  "id": "US-034",
+  "title": "Diff Viewer: Rehydrate AI-Touched Scope",
+  "type": "bug_fix",
+  "status": "done",
+  "requirements": [
+    {"item": "AI-touched files are reconstructed from stored messages when a session loads.", "done": true},
+    {"item": "Touched file extraction recognizes common edit/write tool name variants and file path keys.", "done": true},
+    {"item": "AI-scoped diff shows previously edited files after reload without manual fallback.", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "Rehydrate AI scope from message history",
+      "steps": [
+        "In a session, use a Write/Edit tool call to create or modify a file",
+        "Reload the app or switch away and back to the session",
+        "Open the diff panel and confirm the edited file appears under AI scope",
+        "Expand the file and confirm diff hunks match the content"
+      ],
+      "done": true
+    },
+    {
+      "name": "Tool name/path variants still tracked",
+      "steps": [
+        "Trigger a code edit via a tool call",
+        "Verify the touched file path matches the diff file path",
+        "Confirm the AI scope badge appears with the expected file count"
+      ],
+      "done": true
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "AI-touched changes appear even after reloading the app.", "done": true},
+    {"item": "AI scope filtering uses normalized paths that match diff file paths.", "done": true}
+  ],
+  "files": [
+    "src/components/HeadlessChat/index.tsx",
+    "src/store/touchedFiles.ts",
+    "src/components/DiffViewer.tsx"
+  ]
+}
