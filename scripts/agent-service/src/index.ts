@@ -680,11 +680,14 @@ async function runAgent(input: AgentInput): Promise<void> {
       },
       // Always provide path to avoid import.meta.url issues in pkg binaries
       pathToClaudeCodeExecutable: claudeCodePath,
-      // Add permission callback if we have a session ID
-      // This routes permission requests to the Tauri UI for user approval
-      canUseTool: claudeSessionsId
-        ? createCanUseTool(claudeSessionsId)
-        : undefined,
+      // Add permission callback only in 'default' mode (or when mode is undefined)
+      // In acceptEdits/bypassPermissions modes, user wants auto-approval so skip dialog
+      canUseTool:
+        claudeSessionsId &&
+        (!input.options?.permissionMode ||
+          input.options.permissionMode === "default")
+          ? createCanUseTool(claudeSessionsId)
+          : undefined,
     };
 
     // Handle session resume
