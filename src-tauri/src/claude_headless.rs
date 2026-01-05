@@ -342,7 +342,9 @@ struct AgentServiceInput {
     action: String,
     prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    session_id: Option<String>,
+    session_id: Option<String>, // SDK session ID for resume
+    #[serde(skip_serializing_if = "Option::is_none")]
+    claude_sessions_id: Option<String>, // Our session ID for custom tools
     cwd: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     claude_code_path: Option<String>,
@@ -399,13 +401,14 @@ pub async fn start_claude_agent(
             "query".to_string()
         },
         prompt,
-        session_id: resume_id,
+        session_id: resume_id, // SDK session ID for resume
+        claude_sessions_id: Some(session_id.clone()), // Our session ID for custom tools
         cwd: cwd.clone(),
         claude_code_path,
         options: Some(AgentServiceOptions {
             allowed_tools: None, // Use defaults
             permission_mode,
-            mcp_servers: None, // TODO: Add MCP config
+            mcp_servers: None, // Custom tools now handled via claudeSessionsId
         }),
     };
 

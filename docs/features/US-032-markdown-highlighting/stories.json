@@ -1,0 +1,39 @@
+{
+  "id": "US-032",
+  "title": "HeadlessChat: Markdown Rendering + Syntax Highlighting",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Render markdown in user and assistant text messages (headings, bold/italic, lists, links, inline code).", "done": false},
+    {"item": "Render fenced code blocks with language-aware syntax highlighting.", "done": false},
+    {"item": "Apply syntax highlighting to code changes/tool outputs where language is known.", "done": false},
+    {"item": "Preserve existing message layout, tool cards, and diff visuals.", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "Markdown + syntax highlighting",
+      "steps": [
+        "Open a session with a markdown-rich assistant response (headings, lists, links, inline code)",
+        "Verify markdown renders (not raw text) and inline code style matches design",
+        "Send a message that includes fenced code blocks for two languages (e.g. js, python)",
+        "Verify each code block uses syntax highlighting",
+        "Trigger a tool result that includes code changes and verify highlighting is applied when language is known"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Markdown renders consistently in the chat without breaking layout.", "done": false},
+    {"item": "Syntax highlighting respects declared language and falls back gracefully when missing.", "done": false}
+  ],
+  "files": [
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/components/HeadlessChat/MarkdownContent.tsx",
+    "src/components/HeadlessChat/HighlightedCode.tsx",
+    "src/components/HeadlessChat/highlighting.ts",
+    "src/components/HeadlessChat/styles.css",
+    "src/components/HeadlessChat/ToolCall.tsx",
+    "src/components/DiffViewer.tsx",
+    "package.json"
+  ]
+}

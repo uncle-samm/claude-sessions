@@ -3,6 +3,8 @@ import { Sidebar } from "./components/Sidebar";
 import { HeadlessChat } from "./components/HeadlessChat";
 import { SetupModal } from "./components/SetupModal";
 import { DiffViewer } from "./components/DiffViewer";
+import { MessageStyleExamples } from "./components/MessageStyleExamples";
+import { PermissionDialog } from "./components/PermissionDialog";
 import { useSessionStore, Session } from "./store/sessions";
 import "./App.css";
 
@@ -48,12 +50,22 @@ function SessionContainer({ session, isActive }: { session: Session; isActive: b
 function App() {
   const { sessions, activeSessionId, loadFromStorage, pollSessionStatus, startAutoIdleTimer, activateSession } = useSessionStore();
   const [showDiffPanel, setShowDiffPanel] = useState(false);
+  const [showExamples, setShowExamples] = useState(false);
 
   useEffect(() => {
     loadFromStorage();
     pollSessionStatus(); // Start polling for MCP status updates
     startAutoIdleTimer(); // Start auto-idle timer (5min inactivity -> idle)
   }, [loadFromStorage, pollSessionStatus, startAutoIdleTimer]);
+
+  useEffect(() => {
+    const syncFromHash = () => {
+      setShowExamples(window.location.hash === "#examples");
+    };
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
 
   // Auto-activate the active session if it's idle (after initial load)
   const activeSessionForEffect = sessions.find(s => s.id === activeSessionId);
@@ -67,9 +79,20 @@ function App() {
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const canShowDiff = activeSession && activeSession.phase.type === "running_claude";
 
+  if (showExamples) {
+    return (
+      <MessageStyleExamples
+        onExit={() => {
+          window.location.hash = "";
+        }}
+      />
+    );
+  }
+
   return (
     <main className="app-layout">
       <Sidebar />
+      <PermissionDialog />
       <div className={`main-content ${showDiffPanel ? "with-diff-panel" : ""}`}>
         {/* Terminal Area - always visible */}
         <div className="terminal-area">

@@ -1,0 +1,35 @@
+{
+  "id": "US-031",
+  "title": "HeadlessChat: Wider Messages Without Avatars",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Remove avatars and name labels from chat messages.", "done": true},
+    {"item": "Increase message width while keeping a slight offset between user and assistant.", "done": true},
+    {"item": "Assistant messages render without outer background/border and use a subtle bullet marker.", "done": true},
+    {"item": "User messages keep a distinct pill-style background to separate roles.", "done": true},
+    {"item": "Loading state matches the assistant styling (no outer wrap, bullet marker).", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "Reference-inspired message layout",
+      "steps": [
+        "Open a session with existing messages",
+        "Verify messages render without avatar circles or name labels",
+        "Confirm user and assistant messages are wider with a slight offset",
+        "Confirm assistant messages are unwrapped and display a bullet marker",
+        "Confirm user messages retain a pill-style background",
+        "Trigger a response and confirm the loading indicator matches the assistant style"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Chat feels calmer and more transcript-like while preserving readability.", "done": true},
+    {"item": "User and assistant roles are distinguishable via visual treatment only.", "done": true}
+  ],
+  "files": [
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/components/HeadlessChat/styles.css"
+  ]
+}

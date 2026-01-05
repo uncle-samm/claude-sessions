@@ -209,15 +209,16 @@
 
 /* Chat Messages */
 .chat-message {
-  max-width: 88%;
+  width: min(96%, 1020px);
+  max-width: 96%;
   display: flex;
-  gap: 14px;
   align-items: flex-start;
 }
 
 .chat-message-user {
   align-self: flex-end;
-  flex-direction: row-reverse;
+  width: min(78%, 820px);
+  margin-left: auto;
 }
 
 .chat-message-assistant {
@@ -227,73 +228,20 @@
 .chat-message-system,
 .chat-message-error {
   align-self: center;
-  max-width: 100%;
-}
-
-/* Message Avatars */
-.message-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-  flex-shrink: 0;
-  border: 1px solid var(--hc-border-strong);
-  background: linear-gradient(135deg, rgba(230, 237, 246, 0.06), rgba(230, 237, 246, 0.02));
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.22);
-  color: var(--hc-text-muted);
-}
-
-.message-avatar.user {
-  background: linear-gradient(135deg, rgba(91, 125, 191, 0.25), rgba(63, 95, 168, 0.08));
-  border-color: rgba(91, 125, 191, 0.45);
-  color: var(--hc-accent);
-}
-
-.message-avatar.assistant {
-  background: linear-gradient(135deg, rgba(47, 159, 137, 0.2), rgba(47, 159, 137, 0.05));
-  border-color: rgba(47, 159, 137, 0.45);
-  color: var(--hc-success);
-}
-
-.message-avatar.system,
-.message-avatar.error {
-  background: linear-gradient(135deg, rgba(230, 237, 246, 0.04), rgba(230, 237, 246, 0.02));
-  border-color: var(--hc-border);
-  color: var(--hc-text-subtle);
+  width: min(90%, 920px);
+  max-width: 90%;
 }
 
 .message-content {
   flex: 1;
   min-width: 0;
+  width: 100%;
 }
 
-.message-header {
+.message-meta {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.message-role {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--hc-text-subtle);
-}
-
-.chat-message-user .message-role {
-  color: var(--hc-accent);
-}
-
-.chat-message-assistant .message-role {
-  color: var(--hc-success);
-}
-
-.chat-message-error .message-role {
-  color: var(--hc-danger);
+  justify-content: flex-end;
+  margin-bottom: 6px;
 }
 
 .message-cost {
@@ -307,8 +255,8 @@
   border: 1px solid var(--hc-border);
   border-radius: 12px;
   padding: 14px 18px;
-  line-height: 1.7;
-  font-size: 14px;
+  line-height: 1.6;
+  font-size: 13px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
 }
 
@@ -318,14 +266,162 @@
   border-color: rgba(91, 125, 191, 0.35);
 }
 
+.chat-message-assistant .message-body {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-message-assistant .message-markdown,
+.chat-message-assistant .message-tool,
+.chat-message-assistant .message-tool-inline,
+.chat-message-assistant .thinking-block,
+.chat-message-assistant .message-empty {
+  position: relative;
+  padding-left: 18px;
+}
+
+.chat-message-assistant .message-tool,
+.chat-message-assistant .message-tool-inline {
+  margin: 0;
+}
+
+.chat-message-assistant .message-markdown::before,
+.chat-message-assistant .message-tool-inline::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(230, 237, 246, 0.45);
+}
+
+.chat-message-assistant .message-tool::before,
+.chat-message-assistant .thinking-block::before,
+.chat-message-assistant .message-empty::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 16px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(230, 237, 246, 0.45);
+}
+
 .chat-message-error .message-body {
   background: rgba(204, 107, 107, 0.12);
   border: 1px solid rgba(204, 107, 107, 0.35);
 }
 
-.message-text {
-  white-space: pre-wrap;
+.message-markdown {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--hc-text);
   word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.message-markdown > * {
+  margin: 0;
+}
+
+.message-markdown ul,
+.message-markdown ol {
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 6px;
+}
+
+.message-markdown li {
+  margin: 0;
+}
+
+.message-markdown a {
+  color: var(--hc-accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(91, 125, 191, 0.4);
+}
+
+.message-markdown a:hover {
+  border-bottom-color: rgba(91, 125, 191, 0.8);
+}
+
+.message-markdown blockquote {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid rgba(230, 237, 246, 0.15);
+  color: var(--hc-text-subtle);
+}
+
+.message-markdown h1,
+.message-markdown h2,
+.message-markdown h3,
+.message-markdown h4 {
+  font-weight: 600;
+  color: var(--hc-text);
+}
+
+.message-markdown h1 {
+  font-size: 20px;
+}
+
+.message-markdown h2 {
+  font-size: 18px;
+}
+
+.message-markdown h3 {
+  font-size: 16px;
+}
+
+.message-markdown h4 {
+  font-size: 15px;
+}
+
+.markdown-table {
+  overflow-x: auto;
+  border: 1px solid var(--hc-border);
+  border-radius: 10px;
+  background: rgba(17, 26, 36, 0.5);
+}
+
+.markdown-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 320px;
+}
+
+.markdown-table th,
+.markdown-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(230, 237, 246, 0.08);
+  border-right: 1px solid rgba(230, 237, 246, 0.08);
+  text-align: left;
+}
+
+.markdown-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hc-text-subtle);
+  background: rgba(15, 22, 32, 0.65);
+}
+
+.markdown-table th:last-child,
+.markdown-table td:last-child {
+  border-right: none;
+}
+
+.markdown-table tr:last-child td {
+  border-bottom: none;
 }
 
 .message-empty {
@@ -345,6 +441,10 @@
   background: linear-gradient(180deg, rgba(91, 125, 191, 0.8), rgba(91, 125, 191, 0.2));
   margin-top: 4px;
   flex-shrink: 0;
+}
+
+.chat-message-assistant .message-empty-icon {
+  display: none;
 }
 
 .message-empty-title {
@@ -370,6 +470,14 @@
   font-family: var(--hc-mono), monospace;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.code-block .hljs {
+  background: transparent;
+}
+
+.code-block code.hljs {
+  padding: 0;
 }
 
 .inline-code {
@@ -447,6 +555,15 @@
 .tool-bash-header:hover,
 .tool-header:hover {
   background: rgba(230, 237, 246, 0.04);
+}
+
+.tool-header.tool-header-static {
+  cursor: default;
+  background: var(--hc-panel-2);
+}
+
+.tool-header.tool-header-static:hover {
+  background: var(--hc-panel-2);
 }
 
 .tool-chevron {
@@ -654,6 +771,14 @@
   white-space: pre;
 }
 
+.tool-content .hljs {
+  background: transparent;
+}
+
+.tool-content code.hljs {
+  padding: 0;
+}
+
 .tool-empty {
   display: grid;
   grid-template-columns: 2px 1fr;
@@ -756,6 +881,10 @@
   padding: 0 8px;
   white-space: pre;
   overflow-x: auto;
+}
+
+.diff-line-content .hljs {
+  background: transparent;
 }
 
 .diff-removed .diff-line-content {
@@ -907,22 +1036,28 @@
 
 /* Loading */
 .message-loading {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
   align-self: flex-start;
 }
 
-.loading-content {
+.message-body-loading {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 18px;
-  background: var(--hc-panel);
-  border: 1px solid var(--hc-border);
-  border-radius: 12px;
+  position: relative;
+  padding-left: 18px;
   color: var(--hc-text-subtle);
   font-size: 13px;
+}
+
+.message-body-loading::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(230, 237, 246, 0.35);
 }
 
 .loading-dot {
@@ -1840,6 +1975,23 @@
   line-height: 1.7;
 }
 
+.tool-plan-markdown {
+  padding: 14px 16px;
+  color: var(--hc-text);
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tool-plan-markdown .code-block {
+  margin: 0;
+}
+
+.tool-plan-markdown .markdown-table {
+  background: rgba(17, 26, 36, 0.6);
+}
+
 /* KillShell Tool */
 .tool-kill-shell {
   background: var(--hc-panel);
@@ -1907,6 +2059,24 @@
   background: rgba(47, 159, 137, 0.16);
   border-color: rgba(47, 159, 137, 0.3);
   color: var(--hc-success);
+}
+
+/* Claude Sessions MCP Tools - inline style like message-empty */
+.tool-claude-sessions-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-claude-sessions-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--hc-text);
+}
+
+.tool-claude-sessions-detail {
+  font-size: 12px;
+  color: var(--hc-text-muted);
 }
 
 /* Task Resume Info */

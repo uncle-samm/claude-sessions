@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDiffStore } from "../store/diffs";
 import { useSessionStore } from "../store/sessions";
 import { useWorkspaceStore } from "../store/workspaces";
@@ -6,6 +6,8 @@ import { useCommentStore, Comment } from "../store/comments";
 import type { DiffLine, FileDiff } from "../store/api";
 import { fetchOrigin, getCommitSha, updateSessionBaseCommit } from "../store/api";
 import { useTouchedFilesStore } from "../store/touchedFiles";
+import { escapeHtml, useHighlightedLines } from "./HeadlessChat/HighlightedCode";
+import { getLanguageFromFilename } from "./HeadlessChat/highlighting";
 
 interface DiffViewerProps {
   onClose: () => void;
@@ -19,12 +21,16 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const { touchedBySession } = useTouchedFilesStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [resolvedBaseRef, setResolvedBaseRef] = useState<string | null>(null);
+  const [visibleFileCount, setVisibleFileCount] = useState(80);
+  const prevBaseRef = useRef<string | null>(null);
+  const prevSessionId = useRef<string | null>(null);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const workspace = workspaces.find((w) => w.id === activeSession?.workspaceId);
   const worktreePath = activeSession?.finalCwd || activeSession?.cwd;
   const originBranch = workspace?.originBranch || "main";
   const baseRef = resolvedBaseRef;
+  const diffCacheKey = activeSessionId && baseRef ? `${activeSessionId}:${baseRef}` : null;
   const touchedFiles = activeSessionId ? (touchedBySession[activeSessionId] || []) : [];
   const touchedFileSet = useMemo(() => new Set(touchedFiles), [touchedFiles]);
 
@@ -92,24 +98,37 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   useEffect(() => {
     if (worktreePath) {
       loadCurrentBranch(worktreePath);
-      if (baseRef) {
-        loadDiffSummary(worktreePath, baseRef);
+      if (baseRef && diffCacheKey) {
+        loadDiffSummary(worktreePath, baseRef, diffCacheKey);
       }
     }
     if (activeSessionId) {
       loadComments(activeSessionId);
     }
     return () => {
-      clearDiff();
       clearComments();
     };
-  }, [worktreePath, baseRef, activeSessionId, loadDiffSummary, loadCurrentBranch, clearDiff, loadComments, clearComments]);
+  }, [worktreePath, baseRef, diffCacheKey, activeSessionId, loadDiffSummary, loadCurrentBranch, loadComments, clearComments]);
+
+  useEffect(() => {
+    if (prevSessionId.current === activeSessionId && prevBaseRef.current && baseRef && prevBaseRef.current !== baseRef) {
+      clearDiff(`${activeSessionId}:${prevBaseRef.current}`);
+    }
+    prevSessionId.current = activeSessionId || null;
+    prevBaseRef.current = baseRef;
+  }, [activeSessionId, baseRef, clearDiff]);
+
+  useEffect(() => {
+    if (!displaySummary) return;
+    setVisibleFileCount(80);
+  }, [displaySummary?.total_files, diffCacheKey]);
 
   const handleToggleFile = (filePath: string) => {
-    toggleFileExpanded(filePath);
+    if (!diffCacheKey) return;
+    toggleFileExpanded(filePath, diffCacheKey);
     // Load file content if expanding and not already loaded
     if (!expandedFiles.has(filePath) && !fileContents.has(filePath) && worktreePath && baseRef) {
-      loadFileDiff(worktreePath, filePath, baseRef);
+      loadFileDiff(worktreePath, filePath, baseRef, diffCacheKey);
     }
   };
 
@@ -132,8 +151,7 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
       setResolvedBaseRef(newCommitSha);
 
       // Clear and reload diff with new base
-      clearDiff();
-      loadDiffSummary(worktreePath, newCommitSha);
+      loadDiffSummary(worktreePath, newCommitSha, `${activeSession.id}:${newCommitSha}`, { force: true });
       loadCurrentBranch(worktreePath);
     } catch (err) {
       console.error("[DiffViewer] Failed to sync with origin:", err);
@@ -175,6 +193,10 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
   const baseRefDisplay = baseRef
     ? (/^[0-9a-f]{7,40}$/i.test(baseRef) ? baseRef.slice(0, 8) : baseRef)
     : `origin/${originBranch}`;
+
+  const visibleFiles = displaySummary ? displaySummary.files.slice(0, visibleFileCount) : [];
+  const hasMoreFiles = displaySummary ? displaySummary.files.length > visibleFileCount : false;
+  const remainingFiles = displaySummary ? displaySummary.files.length - visibleFileCount : 0;
 
   return (
     <div className="diff-viewer">
@@ -240,7 +262,7 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
                 <p>{touchedFiles.length > 0 ? "No AI-touched changes detected" : "No changes detected"}</p>
               </div>
             ) : (
-              displaySummary.files.map((file) => {
+              visibleFiles.map((file) => {
                 const commentCount = getFileCommentCount(file.path);
                 return (
                   <div key={file.path} className="diff-file">
@@ -283,6 +305,20 @@ export function DiffViewer({ onClose }: DiffViewerProps) {
               })
             )}
           </div>
+          {hasMoreFiles && (
+            <div className="diff-file-list-footer">
+              <button
+                className="diff-load-more"
+                onClick={() =>
+                  setVisibleFileCount((count) =>
+                    Math.min(count + 80, displaySummary.files.length)
+                  )
+                }
+              >
+                Load more files ({remainingFiles} remaining)
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -299,25 +335,58 @@ function FileHunks({ file, sessionId, comments }: FileHunksProps) {
   if (file.hunks.length === 0) {
     return <div className="diff-no-hunks">No content changes</div>;
   }
+  const language = getLanguageFromFilename(file.path);
 
   return (
     <div className="diff-hunks">
       {file.hunks.map((hunk, hunkIndex) => (
-        <div key={hunkIndex} className="diff-hunk">
-          <div className="diff-hunk-header">{hunk.header}</div>
-          <div className="diff-lines">
-            {hunk.lines.map((line, lineIndex) => (
-              <DiffLineRow
-                key={lineIndex}
-                line={line}
-                filePath={file.path}
-                sessionId={sessionId}
-                comments={comments}
-              />
-            ))}
-          </div>
-        </div>
+        <DiffHunkBlock
+          key={hunkIndex}
+          hunk={hunk}
+          filePath={file.path}
+          sessionId={sessionId}
+          comments={comments}
+          language={language}
+        />
       ))}
+    </div>
+  );
+}
+
+function DiffHunkBlock({
+  hunk,
+  filePath,
+  sessionId,
+  comments,
+  language,
+}: {
+  hunk: FileDiff["hunks"][number];
+  filePath: string;
+  sessionId: string;
+  comments: Comment[];
+  language?: string;
+}) {
+  const hunkContent = useMemo(
+    () => hunk.lines.map((line) => line.content || " ").join("\n"),
+    [hunk.lines],
+  );
+  const highlightedLines = useHighlightedLines(hunkContent, language, { defer: true });
+
+  return (
+    <div className="diff-hunk">
+      <div className="diff-hunk-header">{hunk.header}</div>
+      <div className="diff-lines">
+        {hunk.lines.map((line, lineIndex) => (
+          <DiffLineRow
+            key={lineIndex}
+            line={line}
+            filePath={filePath}
+            sessionId={sessionId}
+            comments={comments}
+            highlightHtml={highlightedLines?.[lineIndex] ?? null}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -327,9 +396,10 @@ interface DiffLineRowProps {
   filePath: string;
   sessionId: string;
   comments: Comment[];
+  highlightHtml?: string | null;
 }
 
-function DiffLineRow({ line, filePath, sessionId, comments }: DiffLineRowProps) {
+function DiffLineRow({ line, filePath, sessionId, comments, highlightHtml }: DiffLineRowProps) {
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentText, setCommentText] = useState("");
   const { addComment, resolveComment } = useCommentStore();
@@ -341,6 +411,8 @@ function DiffLineRow({ line, filePath, sessionId, comments }: DiffLineRowProps) 
 
   const lineClass = `diff-line diff-line-${line.line_type}`;
   const prefix = line.line_type === "add" ? "+" : line.line_type === "delete" ? "-" : " ";
+  const rawContent = line.content || " ";
+  const contentHtml = highlightHtml ?? escapeHtml(rawContent);
 
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
@@ -364,7 +436,7 @@ function DiffLineRow({ line, filePath, sessionId, comments }: DiffLineRowProps) 
         <span className="diff-line-number old">{line.old_line ?? ""}</span>
         <span className="diff-line-number new">{line.new_line ?? ""}</span>
         <span className="diff-line-prefix">{prefix}</span>
-        <span className="diff-line-content">{line.content || " "}</span>
+        <span className="diff-line-content" dangerouslySetInnerHTML={{ __html: contentHtml }} />
         <button
           className="diff-line-comment-btn"
           onClick={() => setShowCommentInput(!showCommentInput)}

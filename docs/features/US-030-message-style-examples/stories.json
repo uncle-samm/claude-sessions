@@ -1,0 +1,37 @@
+{
+  "id": "US-030",
+  "title": "Message UI Style Examples",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Provide a dedicated examples view that does not alter live chat behavior.", "done": false},
+    {"item": "Include four distinct message UI variants: Ledger Cards, Timeline Stream, Studio Panels, Editorial Notes.", "done": false},
+    {"item": "Allow switching between variants inside the examples view.", "done": false},
+    {"item": "Use sample user/AI content (no avatars or 'Claude' naming).", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "Cycle message UI variants",
+      "steps": [
+        "Open the examples view",
+        "Verify Ledger Cards layout renders",
+        "Switch to Timeline Stream and verify layout changes",
+        "Switch to Studio Panels and verify layout changes",
+        "Switch to Editorial Notes and verify layout changes",
+        "Capture screenshots for each variant"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Examples view is accessible without disrupting normal sessions.", "done": false},
+    {"item": "Each variant clearly distinguishes user vs AI without names or avatars.", "done": false},
+    {"item": "Layouts look intentional and visually distinct across variants.", "done": false}
+  ],
+  "files": [
+    "src/App.tsx",
+    "src/components/MessageStyleExamples.tsx",
+    "src/components/MessageStyleExamples.css",
+    "src/App.css"
+  ]
+}

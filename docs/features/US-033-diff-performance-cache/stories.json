@@ -1,0 +1,43 @@
+{
+  "id": "US-033",
+  "title": "Diff Viewer: Cache + Lazy File List",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Cache diff summary per session+base ref so reopening the panel does not refetch.", "done": false},
+    {"item": "Cache file hunks per session+base ref so expanding a file is instant after first load.", "done": false},
+    {"item": "Invalidate cached diffs when base ref changes or Sync is executed.", "done": false},
+    {"item": "Lazy render the file list when many files are present (Load more or incremental render).", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "Diff cache reuse",
+      "steps": [
+        "Open the diff panel for a session and wait for file list to load",
+        "Close the diff panel",
+        "Reopen the diff panel and confirm the file list appears immediately without loading state",
+        "Expand a file that was already opened and confirm it renders immediately"
+      ],
+      "done": false
+    },
+    {
+      "name": "Cache invalidation + lazy list",
+      "steps": [
+        "Open a diff panel with many files",
+        "Confirm only the first chunk of files renders and a Load more control is available",
+        "Click Load more and confirm additional files appear",
+        "Sync with origin and confirm the cache invalidates (loading state appears and data refreshes)"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Reopening diff panel feels instant for previously loaded data.", "done": false},
+    {"item": "Large diff lists do not block rendering and can be expanded progressively.", "done": false}
+  ],
+  "files": [
+    "src/store/diffs.ts",
+    "src/components/DiffViewer.tsx",
+    "src/App.css"
+  ]
+}

@@ -1,5 +1,5 @@
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -7,9 +7,16 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Duration;
+use tauri::Emitter;
+use tokio::sync::oneshot;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::db;
+use crate::permissions::{
+    self, PendingPermission, PermissionBehavior, PermissionRequest, PermissionResponse,
+};
 
 const SERVER_PORT: u16 = 19420;
 
@@ -127,7 +134,10 @@ async fn update_status(
 
     match db::update_session_status(&id, &payload.status) {
         Ok(_) => {
-            println!("[Server] Session {} status updated to: {}", id, payload.status);
+            println!(
+                "[Server] Session {} status updated to: {}",
+                id, payload.status
+            );
             (
                 StatusCode::OK,
                 Json(ApiResponse {
@@ -217,7 +227,11 @@ async fn get_comments(Path(id): Path<String>) -> (StatusCode, Json<CommentsRespo
                     created_at: c.created_at.to_rfc3339(),
                 })
                 .collect();
-            println!("[Server] Session {} has {} open comments", id, comment_infos.len());
+            println!(
+                "[Server] Session {} has {} open comments",
+                id,
+                comment_infos.len()
+            );
             (
                 StatusCode::OK,
                 Json(CommentsResponse {
@@ -315,12 +329,176 @@ async fn resolve_comment_handler(
     }
 }
 
+/// App state shared with axum handlers
+#[derive(Clone)]
+struct AppState {
+    app_handle: Option<tauri::AppHandle>,
+}
+
+// POST /api/session/:id/permission-request - Request permission for a tool
+// This endpoint blocks until the user responds via the frontend
+async fn permission_request_handler(
+    State(state): State<Arc<AppState>>,
+    Path(session_id): Path<String>,
+    Json(mut request): Json<PermissionRequest>,
+) -> (StatusCode, Json<ApiResponse<PermissionResponse>>) {
+    // Ensure session_id in path matches request
+    request.session_id = session_id.clone();
+
+    // Check if tool is always-allowed for this session
+    if permissions::is_always_allowed(&session_id, &request.tool_name) {
+        println!(
+            "[Server] Tool {} auto-allowed for session {}",
+            request.tool_name, session_id
+        );
+        return (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(PermissionResponse {
+                    request_id: request.request_id.clone(),
+                    behavior: PermissionBehavior::Allow,
+                    message: None,
+                    interrupt: None,
+                    always_allow: Some(true),
+                }),
+                error: None,
+            }),
+        );
+    }
+
+    println!(
+        "[Server] Permission request for tool {} in session {}",
+        request.tool_name, session_id
+    );
+
+    // Create oneshot channel for response
+    let (tx, rx) = oneshot::channel::<PermissionResponse>();
+
+    let request_id = request.request_id.clone();
+
+    // Emit event to frontend
+    if let Some(app_handle) = &state.app_handle {
+        if let Err(e) = app_handle.emit("permission-request", &request) {
+            println!("[Server] Failed to emit permission-request event: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some(format!("Failed to emit event: {}", e)),
+                }),
+            );
+        }
+    } else {
+        println!("[Server] No app handle available to emit events");
+        // In development/testing, auto-allow if no UI available
+        return (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(PermissionResponse {
+                    request_id,
+                    behavior: PermissionBehavior::Allow,
+                    message: None,
+                    interrupt: None,
+                    always_allow: None,
+                }),
+                error: None,
+            }),
+        );
+    }
+
+    // Store pending request
+    permissions::add_pending(
+        request_id.clone(),
+        PendingPermission {
+            request,
+            response_tx: tx,
+        },
+    );
+
+    // Wait for response with timeout (5 minutes)
+    let timeout_duration = Duration::from_secs(300);
+    match tokio::time::timeout(timeout_duration, rx).await {
+        Ok(Ok(response)) => {
+            // If always_allow is set, remember it
+            if response.always_allow == Some(true) && response.behavior == PermissionBehavior::Allow
+            {
+                // Get the tool name from the request we just processed
+                // We need to look it up before it's removed
+                let tool_name = {
+                    let pending = permissions::PENDING_PERMISSIONS.lock().unwrap();
+                    pending
+                        .get(&request_id)
+                        .map(|p| p.request.tool_name.clone())
+                };
+                if let Some(tool_name) = tool_name {
+                    permissions::set_always_allowed(&session_id, &tool_name);
+                    println!(
+                        "[Server] Tool {} now always-allowed for session {}",
+                        tool_name, session_id
+                    );
+                }
+            }
+
+            println!(
+                "[Server] Permission response for {}: {:?}",
+                request_id, response.behavior
+            );
+            (
+                StatusCode::OK,
+                Json(ApiResponse {
+                    success: true,
+                    data: Some(response),
+                    error: None,
+                }),
+            )
+        }
+        Ok(Err(_)) => {
+            // Channel closed (request was cancelled)
+            permissions::take_pending(&request_id);
+            (
+                StatusCode::GONE,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some("Permission request was cancelled".to_string()),
+                }),
+            )
+        }
+        Err(_) => {
+            // Timeout
+            permissions::take_pending(&request_id);
+            println!("[Server] Permission request {} timed out", request_id);
+            (
+                StatusCode::REQUEST_TIMEOUT,
+                Json(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some("Permission request timed out".to_string()),
+                }),
+            )
+        }
+    }
+}
+
+pub async fn start_server_with_app(app_handle: tauri::AppHandle) {
+    start_server_internal(Some(app_handle)).await;
+}
+
 pub async fn start_server() {
+    start_server_internal(None).await;
+}
+
+async fn start_server_internal(app_handle: Option<tauri::AppHandle>) {
     // Build router with CORS enabled for local development
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
+
+    let state = Arc::new(AppState { app_handle });
 
     let app = Router::new()
         .route("/api/health", get(health_check))
@@ -336,6 +514,11 @@ pub async fn start_server() {
             "/api/session/:id/comments/:comment_id/resolve",
             post(resolve_comment_handler),
         )
+        .route(
+            "/api/session/:id/permission-request",
+            post(permission_request_handler),
+        )
+        .with_state(state)
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], SERVER_PORT));

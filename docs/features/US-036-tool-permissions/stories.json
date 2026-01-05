@@ -1,0 +1,68 @@
+{
+  "id": "US-036",
+  "title": "Tool Permission System",
+  "type": "feature",
+  "status": "done",
+  "description": "Implement a permission dialog UI that intercepts tool calls requiring approval and allows users to approve/deny/always-allow them",
+  "requirements": [
+    {"item": "Permission dialog shows tool name and description", "done": true},
+    {"item": "Permission dialog shows command/input preview", "done": true},
+    {"item": "Deny button (Esc) rejects the tool call", "done": true},
+    {"item": "Allow once button (Enter) approves single execution", "done": true},
+    {"item": "Always allow button (Cmd+Enter) approves for session", "done": true},
+    {"item": "Agent-service implements canUseTool callback", "done": true},
+    {"item": "Tauri backend has permission request/response endpoints", "done": true},
+    {"item": "Permission requests timeout after 5 minutes", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "User can deny a tool call",
+      "steps": [
+        "Start a session",
+        "Trigger a tool that requires permission",
+        "Wait for permission dialog",
+        "Click Deny or press Esc",
+        "Verify tool was denied and agent received denial message"
+      ],
+      "done": true
+    },
+    {
+      "name": "User can allow a tool call once",
+      "steps": [
+        "Start a session",
+        "Trigger a tool that requires permission",
+        "Wait for permission dialog",
+        "Click Allow once or press Enter",
+        "Verify tool executed successfully"
+      ],
+      "done": true
+    },
+    {
+      "name": "User can always allow a tool",
+      "steps": [
+        "Start a session",
+        "Trigger a tool that requires permission",
+        "Wait for permission dialog",
+        "Click Always allow or press Cmd+Enter",
+        "Trigger same tool again",
+        "Verify no dialog appears second time"
+      ],
+      "done": true
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Permission dialog appears for tools requiring approval", "done": true},
+    {"item": "Keyboard shortcuts work (Esc, Enter, Cmd+Enter)", "done": true},
+    {"item": "Always-allow persists for session duration", "done": true},
+    {"item": "UI matches reference design (dark theme, command preview)", "done": true}
+  ],
+  "files": [
+    "scripts/agent-service/src/index.ts",
+    "src-tauri/src/server.rs",
+    "src-tauri/src/lib.rs",
+    "src-tauri/src/permissions.rs",
+    "src/components/PermissionDialog.tsx",
+    "src/components/PermissionDialog.css",
+    "src/App.tsx"
+  ]
+}

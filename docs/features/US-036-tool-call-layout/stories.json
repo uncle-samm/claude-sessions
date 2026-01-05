@@ -1,0 +1,55 @@
+{
+  "id": "US-036",
+  "title": "Bug Fix: Chat tool call layout + text sizing",
+  "type": "bug_fix",
+  "status": "in_progress",
+  "requirements": [
+    {
+      "item": "Reduce chat message text size slightly for better density without harming readability.",
+      "done": true
+    },
+    {
+      "item": "Fix tool call message layout so status text and body align consistently.",
+      "done": true
+    },
+    {
+      "item": "Maintain existing visual style and spacing for non-tool messages.",
+      "done": true
+    }
+  ],
+  "e2eTests": [
+    {
+      "name": "Tool call layout displays correctly",
+      "steps": [
+        "Open a session that contains tool call messages.",
+        "Verify the tool call title and body align on a single column without odd offsets.",
+        "Check adjacent non-tool messages are unchanged in layout."
+      ],
+      "done": false
+    },
+    {
+      "name": "Chat text size reduction",
+      "steps": [
+        "Open a session with several messages.",
+        "Confirm message body text renders slightly smaller than before.",
+        "Confirm readability at typical zoom (100%)."
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {
+      "item": "Tool call messages render without the odd indentation/offset shown in the screenshot.",
+      "done": false
+    },
+    {
+      "item": "Chat body text is slightly smaller while remaining legible.",
+      "done": false
+    }
+  ],
+  "files": [
+    "src/components/HeadlessChat/MessageList.tsx",
+    "src/components/HeadlessChat/ToolCall.tsx",
+    "src/components/HeadlessChat/styles.css"
+  ]
+}

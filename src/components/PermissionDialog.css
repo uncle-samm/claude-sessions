@@ -1,0 +1,154 @@
+.permission-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.permission-dialog {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 560px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.permission-header {
+  margin-bottom: 12px;
+}
+
+.permission-title {
+  font-size: 16px;
+  color: #e6edf6;
+  font-weight: 400;
+}
+
+.permission-title strong {
+  font-weight: 600;
+  color: #fff;
+}
+
+.permission-description {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.permission-preview {
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.permission-preview pre {
+  margin: 0;
+  font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+  font-size: 13px;
+  color: #e6edf6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.permission-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.permission-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.permission-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.permission-btn-deny {
+  background: transparent;
+  border-color: #444;
+  color: #888;
+}
+
+.permission-btn-deny:hover:not(:disabled) {
+  background: #2a2a2a;
+  border-color: #555;
+  color: #aaa;
+}
+
+.permission-btn-always {
+  background: transparent;
+  border-color: #444;
+  color: #e6edf6;
+}
+
+.permission-btn-always:hover:not(:disabled) {
+  background: #2a2a2a;
+  border-color: #555;
+}
+
+.permission-btn-allow {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.permission-btn-allow:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.permission-shortcut {
+  font-size: 11px;
+  color: inherit;
+  opacity: 0.6;
+  padding: 2px 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.permission-btn-allow .permission-shortcut {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Scrollbar styling for preview */
+.permission-preview::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.permission-preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.permission-preview::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.permission-preview::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}

@@ -2,11 +2,12 @@ mod claude_headless;
 mod claude_sessions;
 mod db;
 mod git;
+mod permissions;
 mod server;
 
 use chrono::Utc;
+use permissions::{PermissionBehavior, PermissionResponse};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 // Types for IPC
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -247,109 +248,20 @@ fn clear_inbox() -> Result<(), String> {
     db::clear_inbox().map_err(|e| e.to_string())
 }
 
-/// Configure a worktree directory with MCP settings for Claude Code
+/// Configure a worktree directory for Claude Code
+/// Note: MCP configuration is no longer needed - custom tools are now provided
+/// directly via the SDK in agent-service. This function is kept for any future
+/// worktree-specific configuration needs.
 #[tauri::command]
-fn configure_worktree(worktree_path: String, session_id: String) -> Result<(), String> {
-    let path = PathBuf::from(&worktree_path);
+fn configure_worktree(worktree_path: String, _session_id: String) -> Result<(), String> {
+    // MCP configuration removed - custom tools (notify_ready, get_pending_comments, etc.)
+    // are now provided directly to the SDK via createSdkMcpServer() in agent-service.
+    // No need to write .mcp.json or .claude/settings.local.json anymore.
 
-    // Get the path to the MCP bridge script (relative to app)
-    let mcp_bridge_path = std::env::current_exe()
-        .map_err(|e| e.to_string())?
-        .parent()
-        .ok_or("Could not get exe parent")?
-        .join("../Resources/mcp-bridge.cjs");
-
-    // For dev mode, use the scripts directory
-    let mcp_bridge_path = if mcp_bridge_path.exists() {
-        mcp_bridge_path
-    } else {
-        // Fallback to repo path for development
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .ok_or("Could not get manifest parent")?
-            .join("scripts/mcp-bridge.cjs")
-    };
-
-    let mcp_bridge_str = mcp_bridge_path.to_string_lossy().to_string();
-
-    // Configure .mcp.json
-    let mcp_json_path = path.join(".mcp.json");
-    let mut mcp_config: serde_json::Value = if mcp_json_path.exists() {
-        let content = std::fs::read_to_string(&mcp_json_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({"mcpServers": {}}))
-    } else {
-        serde_json::json!({"mcpServers": {}})
-    };
-
-    // Add our MCP server config
-    if let Some(servers) = mcp_config.get_mut("mcpServers") {
-        servers["claude-sessions"] = serde_json::json!({
-            "command": "node",
-            "args": [mcp_bridge_str],
-            "env": {
-                "CLAUDE_SESSIONS_ID": session_id
-            }
-        });
-    }
-
-    std::fs::write(
-        &mcp_json_path,
-        serde_json::to_string_pretty(&mcp_config).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-
-    // Configure .claude/settings.local.json
-    let claude_dir = path.join(".claude");
-    std::fs::create_dir_all(&claude_dir).map_err(|e| e.to_string())?;
-
-    let settings_path = claude_dir.join("settings.local.json");
-    let mut settings: serde_json::Value = if settings_path.exists() {
-        let content = std::fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content)
-            .unwrap_or_else(|_| serde_json::json!({"permissions": {"allow": []}}))
-    } else {
-        serde_json::json!({"permissions": {"allow": []}})
-    };
-
-    // Add our permissions
-    let our_permissions = vec![
-        "mcp__claude-sessions__notify_ready",
-        "mcp__claude-sessions__notify_busy",
-    ];
-
-    if let Some(perms) = settings.pointer_mut("/permissions/allow") {
-        if let Some(arr) = perms.as_array_mut() {
-            for perm in &our_permissions {
-                let perm_val = serde_json::Value::String(perm.to_string());
-                if !arr.contains(&perm_val) {
-                    arr.push(perm_val);
-                }
-            }
-        }
-    } else {
-        settings["permissions"]["allow"] = serde_json::json!(our_permissions);
-    }
-
-    // Auto-accept only our specific MCP server without prompting
-    // This adds to existing list if present, or creates new list
-    if let Some(servers) = settings.get_mut("enabledMcpjsonServers") {
-        if let Some(arr) = servers.as_array_mut() {
-            let our_server = serde_json::Value::String("claude-sessions".to_string());
-            if !arr.contains(&our_server) {
-                arr.push(our_server);
-            }
-        }
-    } else {
-        settings["enabledMcpjsonServers"] = serde_json::json!(["claude-sessions"]);
-    }
-
-    std::fs::write(
-        &settings_path,
-        serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-
-    println!("[Config] Configured worktree at: {}", worktree_path);
+    println!(
+        "[Config] Worktree configured at: {} (no MCP files needed)",
+        worktree_path
+    );
     Ok(())
 }
 
@@ -460,6 +372,43 @@ fn delete_comment(id: String) -> Result<(), String> {
     db::delete_comment(&id).map_err(|e| e.to_string())
 }
 
+// Permission commands
+#[tauri::command]
+fn respond_to_permission(
+    request_id: String,
+    behavior: String,
+    message: Option<String>,
+    always_allow: Option<bool>,
+) -> Result<(), String> {
+    let behavior = match behavior.as_str() {
+        "allow" => PermissionBehavior::Allow,
+        "deny" => PermissionBehavior::Deny,
+        _ => return Err(format!("Invalid behavior: {}", behavior)),
+    };
+
+    let response = PermissionResponse {
+        request_id: request_id.clone(),
+        behavior,
+        message,
+        interrupt: Some(true), // Always interrupt on deny
+        always_allow,
+    };
+
+    // Find and complete the pending request
+    if let Some(pending) = permissions::take_pending(&request_id) {
+        // Send response through the channel
+        if pending.response_tx.send(response).is_err() {
+            return Err("Failed to send response - request may have timed out".to_string());
+        }
+        Ok(())
+    } else {
+        Err(format!(
+            "No pending permission request found for {}",
+            request_id
+        ))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize database
@@ -505,6 +454,8 @@ pub fn run() {
             reply_to_comment,
             resolve_comment,
             delete_comment,
+            // Permission commands
+            respond_to_permission,
             // Headless Claude commands (legacy CLI)
             claude_headless::start_claude_headless,
             claude_headless::send_claude_input,
@@ -517,10 +468,11 @@ pub fn run() {
             claude_sessions::load_claude_session_messages,
             claude_sessions::list_claude_sessions,
         ])
-        .setup(|_app| {
+        .setup(|app| {
             // Spawn HTTP server for MCP bridge in background
-            tauri::async_runtime::spawn(async {
-                server::start_server().await;
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                server::start_server_with_app(app_handle).await;
             });
             Ok(())
         });

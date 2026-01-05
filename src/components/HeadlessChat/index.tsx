@@ -253,18 +253,9 @@ export function HeadlessChat({
           addTouchedFiles(sessionId, touchedFiles);
         }
 
-        // Filter out messages that only contain MCP tool calls (internal signaling)
-        const onlyMcpTools = content.every(
-          (block) =>
-            block.type === "tool_use" &&
-            "name" in block &&
-            (block as { name: string }).name.startsWith("mcp__"),
-        );
-
-        if (onlyMcpTools && content.length > 0) {
-          console.log("[HeadlessChat] Skipping MCP-only message");
-          return;
-        }
+        // Note: We no longer filter out MCP tool calls - they should be visible
+        // just like Read, Edit, Bash, etc. Our custom tools (notify_ready,
+        // get_pending_comments, etc.) are user-facing actions.
 
         // Check for TodoWrite tool calls and extract todos
         for (const block of content) {

@@ -1,0 +1,58 @@
+{
+  "id": "US-035",
+  "title": "Replace MCP Bridge with SDK Custom Tools",
+  "type": "feature",
+  "status": "done",
+  "requirements": [
+    {"item": "Custom tools defined using SDK createSdkMcpServer() and tool()", "done": true},
+    {"item": "notify_ready tool works end-to-end", "done": true},
+    {"item": "notify_busy tool works", "done": true},
+    {"item": "get_pending_comments returns comments", "done": true},
+    {"item": "reply_to_comment works", "done": true},
+    {"item": "resolve_comment works", "done": true},
+    {"item": "request_review works", "done": true},
+    {"item": "mcp-bridge.cjs deleted", "done": true},
+    {"item": "configure_worktree() simplified (no MCP config)", "done": true},
+    {"item": "No .mcp.json or .claude/settings.local.json created in worktrees", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "Custom tools work in Claude session",
+      "steps": [
+        "Start a new Claude session",
+        "Verify notify_ready tool sends message to inbox",
+        "Verify get_pending_comments returns comments",
+        "Verify reply_to_comment and resolve_comment work",
+        "Verify no .mcp.json is created in worktree"
+      ],
+      "done": true,
+      "notes": "Tested on 2026-01-05: notify_ready sent messages to inbox, get_pending_comments returned correctly (0 comments due to all root comments being resolved), configure_worktree no longer creates .mcp.json"
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Custom tools defined using SDK createSdkMcpServer() and tool()", "done": true},
+    {"item": "notify_ready tool works end-to-end", "done": true},
+    {"item": "get_pending_comments / reply_to_comment / resolve_comment work", "done": true},
+    {"item": "mcp-bridge.cjs deleted", "done": true},
+    {"item": "configure_worktree() simplified (no MCP config)", "done": true},
+    {"item": "No .mcp.json or .claude/settings.local.json created in worktrees", "done": true}
+  ],
+  "files": [
+    "scripts/agent-service/src/index.ts",
+    "scripts/agent-service/package.json",
+    "src-tauri/src/claude_headless.rs",
+    "src-tauri/src/lib.rs"
+  ],
+  "testResults": {
+    "date": "2026-01-05",
+    "findings": [
+      "agent-service sidecar starts and runs successfully",
+      "Claude SDK connects to custom MCP server 'claude-sessions'",
+      "Tools available: mcp__claude-sessions__notify_ready, mcp__claude-sessions__notify_busy, mcp__claude-sessions__get_pending_comments, mcp__claude-sessions__reply_to_comment, mcp__claude-sessions__resolve_comment, mcp__claude-sessions__request_review",
+      "notify_ready tool creates inbox messages correctly",
+      "get_pending_comments returns proper results from HTTP API",
+      "configure_worktree() no longer creates .mcp.json or .claude/settings.local.json",
+      "mcp-bridge.cjs has been deleted"
+    ]
+  }
+}

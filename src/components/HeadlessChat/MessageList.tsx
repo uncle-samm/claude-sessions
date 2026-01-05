@@ -2,81 +2,20 @@ import { useEffect, useRef } from "react";
 import { ChatMessage, ContentBlock, ToolUseContent, ToolResultContent, ThinkingContent } from "../../store/messages";
 import { ToolCall } from "./ToolCall";
 import { ThinkingBlock } from "./ThinkingBlock";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface MessageListProps {
   messages: ChatMessage[];
   isLoading: boolean;
 }
 
-// Simple markdown-like rendering (basic support)
-function renderText(text: string): React.ReactNode {
-  // Split by code blocks first
-  const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
-  let keyIndex = 0;
-
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    // Add text before code block
-    if (match.index > lastIndex) {
-      parts.push(
-        <span key={keyIndex++}>
-          {renderInlineText(text.slice(lastIndex, match.index))}
-        </span>
-      );
-    }
-
-    // Add code block
-    const language = match[1] || "plaintext";
-    const code = match[2];
-    parts.push(
-      <pre key={keyIndex++} className={`code-block lang-${language}`}>
-        <code>{code}</code>
-      </pre>
-    );
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(
-      <span key={keyIndex++}>
-        {renderInlineText(text.slice(lastIndex))}
-      </span>
-    );
-  }
-
-  return parts.length > 0 ? parts : renderInlineText(text);
-}
-
-// Render inline formatting (bold, italic, code)
-function renderInlineText(text: string): React.ReactNode {
-  // Handle inline code
-  const inlineCodeRegex = /`([^`]+)`/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
-  let keyIndex = 0;
-
-  while ((match = inlineCodeRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    parts.push(<code key={keyIndex++} className="inline-code">{match[1]}</code>);
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : text;
-}
-
 function isHiddenToolName(name: string): boolean {
-  return name.startsWith("mcp__") || name === "TodoWrite";
+  // Show our custom claude-sessions MCP tools
+  if (name.startsWith("mcp__claude-sessions__")) {
+    return false;
+  }
+  // Hide other MCP tools (internal signaling)
+  return name.startsWith("mcp__");
 }
 
 function isHiddenToolBlock(block: ContentBlock): boolean {
@@ -88,7 +27,7 @@ function isHiddenToolBlock(block: ContentBlock): boolean {
 function ContentBlockView({ block, toolResults }: { block: ContentBlock; toolResults: Map<string, { content?: unknown; is_error?: boolean }> }) {
   if (block.type === "text") {
     const textBlock = block as { type: "text"; text: string };
-    return <div className="message-text">{renderText(textBlock.text)}</div>;
+    return <MarkdownContent content={textBlock.text} className="message-markdown" />;
   }
 
   if (block.type === "thinking") {
@@ -99,8 +38,11 @@ function ContentBlockView({ block, toolResults }: { block: ContentBlock; toolRes
   if (block.type === "tool_use") {
     const toolBlock = block as ToolUseContent;
     const result = toolResults.get(toolBlock.id);
+    // Use different wrapper for our inline claude-sessions tools vs regular tool cards
+    const isInlineTool = toolBlock.name.startsWith("mcp__claude-sessions__");
+    const wrapperClass = isInlineTool ? "message-tool-inline" : "message-tool";
     return (
-      <div className="message-tool">
+      <div className={wrapperClass}>
         <ToolCall
           tool={toolBlock}
           result={result?.content}
@@ -123,23 +65,8 @@ function ContentBlockView({ block, toolResults }: { block: ContentBlock; toolRes
   );
 }
 
-// Avatar component
-function MessageAvatar({ type }: { type: string }) {
-  const isUser = type === "user";
-  const isAssistant = type === "assistant";
-
-  return (
-    <div className={`message-avatar ${type}`}>
-      {isUser ? "U" : isAssistant ? "C" : "S"}
-    </div>
-  );
-}
-
 function Message({ message, toolResults }: { message: ChatMessage; toolResults: Map<string, { content?: unknown; is_error?: boolean }> }) {
-
-  const isUser = message.type === "user";
-  const isSystem = message.type === "system";
-  const isError = message.type === "error";
+  const showMeta = message.cost !== undefined;
 
   const visibleBlocks = message.content.filter((block) => {
     if (block.type === "tool_result") return false;
@@ -164,16 +91,12 @@ function Message({ message, toolResults }: { message: ChatMessage; toolResults: 
 
   return (
     <div className={`chat-message chat-message-${message.type}`}>
-      <MessageAvatar type={message.type} />
       <div className="message-content">
-        <div className="message-header">
-          <span className="message-role">
-            {isUser ? "You" : isSystem ? "System" : isError ? "Error" : "Claude"}
-          </span>
-          {message.cost !== undefined && (
+        {showMeta && (
+          <div className="message-meta">
             <span className="message-cost">${message.cost.toFixed(4)}</span>
-          )}
-        </div>
+          </div>
+        )}
         <div className="message-body">
           {hasVisibleBlocks ? (
             visibleBlocks.map((block, i) => (
@@ -242,11 +165,12 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
         <Message key={msg.id} message={msg} toolResults={toolResults} />
       ))}
       {isLoading && (
-        <div className="message-loading">
-          <div className="message-avatar assistant">C</div>
-          <div className="loading-content">
-            <div className="loading-dot" />
-            <span>Processing...</span>
+        <div className="message-loading chat-message chat-message-assistant">
+          <div className="message-content">
+            <div className="message-body message-body-loading">
+              <div className="loading-dot" />
+              <span>Processing...</span>
+            </div>
           </div>
         </div>
       )}

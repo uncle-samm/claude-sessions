@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { ToolUseContent } from "../../store/messages";
+import { MarkdownContent } from "./MarkdownContent";
+import { HighlightedCodeBlock, escapeHtml, useHighlightedLines } from "./HighlightedCode";
+import { getLanguageFromFilename } from "./highlighting";
 
 interface ToolCallProps {
   tool: ToolUseContent;
@@ -68,26 +71,7 @@ function formatPath(path: string): string {
 
 // Get language from file extension
 function getLanguage(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase();
-  const langMap: Record<string, string> = {
-    ts: "typescript",
-    tsx: "tsx",
-    js: "javascript",
-    jsx: "jsx",
-    rs: "rust",
-    py: "python",
-    json: "json",
-    md: "markdown",
-    css: "css",
-    html: "html",
-    yaml: "yaml",
-    yml: "yaml",
-    toml: "toml",
-    sh: "bash",
-    bash: "bash",
-    zsh: "bash",
-  };
-  return langMap[ext || ""] || "plaintext";
+  return getLanguageFromFilename(filePath) || "plaintext";
 }
 
 // Count lines in content
@@ -101,6 +85,7 @@ function ReadTool({ input, result }: { input: Record<string, unknown>; result?: 
   const [expanded, setExpanded] = useState(false);
   const filePath = input.file_path as string || "";
   const content = formatToolResult(result);
+  const language = getLanguage(filePath);
   const hasContent = content.trim().length > 0;
   const lineCount = countLines(content);
   const hasResult = result !== undefined;
@@ -122,9 +107,11 @@ function ReadTool({ input, result }: { input: Record<string, unknown>; result?: 
         </button>
       </div>
       {expanded && hasContent && (
-        <pre className={`tool-content lang-${getLanguage(filePath)}`}>
-          <code>{content}</code>
-        </pre>
+        <HighlightedCodeBlock
+          code={content}
+          language={language}
+          className={`tool-content lang-${language}`}
+        />
       )}
       {expanded && !hasContent && (
         <ToolEmptyState
@@ -138,19 +125,35 @@ function ReadTool({ input, result }: { input: Record<string, unknown>; result?: 
 }
 
 // Render diff lines with line numbers
-function DiffLines({ content, type, startLine = 1 }: { content: string; type: "removed" | "added"; startLine?: number }) {
+function DiffLines({
+  content,
+  type,
+  startLine = 1,
+  language,
+}: {
+  content: string;
+  type: "removed" | "added";
+  startLine?: number;
+  language?: string;
+}) {
   const lines = content.split("\n");
+  const highlightedLines = useHighlightedLines(content, language, { defer: true });
   const marker = type === "removed" ? "-" : "+";
 
   return (
     <div className={`diff-lines diff-${type}`}>
-      {lines.map((line, i) => (
-        <div key={i} className="diff-line">
-          <span className="diff-line-number">{startLine + i}</span>
-          <span className="diff-marker">{marker}</span>
-          <span className="diff-line-content">{line || " "}</span>
-        </div>
-      ))}
+      {lines.map((line, i) => {
+        const rawLine = line === "" ? " " : line;
+        const highlighted = highlightedLines?.[i];
+        const contentHtml = highlighted ?? escapeHtml(rawLine);
+        return (
+          <div key={i} className="diff-line">
+            <span className="diff-line-number">{startLine + i}</span>
+            <span className="diff-marker">{marker}</span>
+            <span className="diff-line-content" dangerouslySetInnerHTML={{ __html: contentHtml }} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -161,6 +164,7 @@ function EditTool({ input, result }: { input: Record<string, unknown>; result?: 
   const filePath = input.file_path as string || "";
   const oldString = input.old_string as string || "";
   const newString = input.new_string as string || "";
+  const language = getLanguage(filePath);
   const hasResult = result !== undefined;
   const hasDiff = oldString.trim().length > 0 || newString.trim().length > 0;
 
@@ -176,8 +180,8 @@ function EditTool({ input, result }: { input: Record<string, unknown>; result?: 
       </div>
       {expanded && hasDiff && (
         <div className="tool-diff">
-          {oldString && <DiffLines content={oldString} type="removed" />}
-          {newString && <DiffLines content={newString} type="added" />}
+          {oldString && <DiffLines content={oldString} type="removed" language={language} />}
+          {newString && <DiffLines content={newString} type="added" language={language} />}
         </div>
       )}
       {expanded && !hasDiff && (
@@ -241,6 +245,7 @@ function WriteTool({ input, result }: { input: Record<string, unknown>; result?:
   const [expanded, setExpanded] = useState(false);
   const filePath = input.file_path as string || "";
   const content = input.content as string || "";
+  const language = getLanguage(filePath);
   const hasContent = content.trim().length > 0;
 
   return (
@@ -253,9 +258,11 @@ function WriteTool({ input, result }: { input: Record<string, unknown>; result?:
         <span className="tool-size">({content.length} chars)</span>
       </div>
       {expanded && hasContent && (
-        <pre className={`tool-content lang-${getLanguage(filePath)}`}>
-          <code>{content}</code>
-        </pre>
+        <HighlightedCodeBlock
+          code={content}
+          language={language}
+          className={`tool-content lang-${language}`}
+        />
       )}
       {expanded && !hasContent && (
         <ToolEmptyState
@@ -511,6 +518,7 @@ function NotebookEditTool({ input, result }: { input: Record<string, unknown>; r
   const cellType = input.cell_type as string || "code";
   const editMode = input.edit_mode as string || "replace";
   const newSource = input.new_source as string || "";
+  const language = cellType === "markdown" ? "markdown" : "python";
   const hasResult = result !== undefined;
   const hasSource = newSource.trim().length > 0;
 
@@ -526,9 +534,11 @@ function NotebookEditTool({ input, result }: { input: Record<string, unknown>; r
         {cellId && <span className="tool-badge tool-badge-cell">cell: {cellId}</span>}
       </div>
       {expanded && hasSource && (
-        <pre className={`tool-content lang-${cellType === "markdown" ? "markdown" : "python"}`}>
-          <code>{newSource}</code>
-        </pre>
+        <HighlightedCodeBlock
+          code={newSource}
+          language={language}
+          className={`tool-content lang-${language}`}
+        />
       )}
       {expanded && !hasSource && (
         <ToolEmptyState
@@ -618,9 +628,7 @@ function ExitPlanModeTool({ input, result }: { input: Record<string, unknown>; r
       </div>
       {expanded && planContent && (
         <div className="tool-plan-content">
-          <pre className="tool-content lang-markdown">
-            <code>{planContent}</code>
-          </pre>
+          <MarkdownContent content={planContent} className="tool-plan-markdown" />
         </div>
       )}
     </div>
@@ -693,15 +701,89 @@ function GenericTool({ tool, result, isError }: ToolCallProps) {
   );
 }
 
+// Extract the base tool name from MCP-prefixed tools
+// e.g., "mcp__claude-sessions__notify_ready" -> "notify_ready"
+function getMcpToolBaseName(name: string): string | null {
+  const match = name.match(/^mcp__[^_]+__(.+)$/);
+  return match ? match[1] : null;
+}
+
+// Claude Sessions MCP tool display - uses simple inline style like "Todo list updated"
+function ClaudeSessionsTool({ tool, result }: { tool: ToolUseContent; result?: unknown }) {
+  const baseName = getMcpToolBaseName(tool.name) || tool.name;
+  const input = tool.input as Record<string, unknown>;
+
+  // Format the tool name nicely
+  const displayName = baseName
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  // Get description based on tool and result
+  const getDescription = () => {
+    switch (baseName) {
+      case "notify_ready":
+        return input.message as string || "Ready";
+      case "notify_busy":
+        return input.message as string || "Busy";
+      case "get_pending_comments": {
+        // Parse result to show comment count
+        const resultStr = typeof result === "string" ? result : "";
+        if (resultStr.includes("No pending comments")) {
+          return "No pending comments found";
+        }
+        return "Checking for pending comments...";
+      }
+      case "reply_to_comment":
+        return `Replied to comment`;
+      case "resolve_comment":
+        return `Resolved comment`;
+      case "request_review":
+        return "Requested code review";
+      default:
+        return baseName;
+    }
+  };
+
+  // Render in the same style as message-empty (like "Todo list updated")
+  return (
+    <div className="tool-claude-sessions-inline">
+      <span className="tool-claude-sessions-title">{displayName}</span>
+      <span className="tool-claude-sessions-detail">{getDescription()}</span>
+    </div>
+  );
+}
+
+function TodoWriteTool() {
+  return (
+    <div className="tool-generic tool-todo">
+      <div className="tool-header tool-header-static">
+        <span className="tool-icon tool-icon-check" aria-hidden="true" />
+        <span className="tool-name">TodoWrite</span>
+      </div>
+      <ToolEmptyState
+        title="Todo list updated"
+        detail="Open the Todo panel to view tasks."
+        tone="empty"
+      />
+    </div>
+  );
+}
+
 export function ToolCall({ tool, result, isError }: ToolCallProps) {
-  // Hide MCP tool calls completely (internal signaling)
+  // Handle our custom claude-sessions MCP tools
+  if (tool.name.startsWith("mcp__claude-sessions__")) {
+    return <ClaudeSessionsTool tool={tool} result={result} />;
+  }
+
+  // Hide other MCP tool calls (internal signaling from other servers)
   if (tool.name.startsWith("mcp__")) {
     return null;
   }
 
-  // Hide TodoWrite tool calls (shown in dedicated panel)
+  // Show TodoWrite with the same card layout as other tool calls
   if (tool.name === "TodoWrite") {
-    return null;
+    return <TodoWriteTool />;
   }
 
   // Route to specific tool display based on name
