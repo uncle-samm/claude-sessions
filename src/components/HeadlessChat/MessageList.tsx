@@ -94,7 +94,7 @@ function Message({ message, toolResults }: { message: ChatMessage; toolResults: 
       <div className="message-content">
         {showMeta && (
           <div className="message-meta">
-            <span className="message-cost">${message.cost.toFixed(4)}</span>
+            <span className="message-cost">${(message.cost ?? 0).toFixed(4)}</span>
           </div>
         )}
         <div className="message-body">

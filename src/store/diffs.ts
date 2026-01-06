@@ -40,7 +40,7 @@ export const useDiffStore = create<DiffStore>((set, get) => ({
     set((state) => {
       const cachedSummary = state.summaryCache[cacheKey] || null;
       const cachedFileContents = state.fileCache[cacheKey] ? new Map(state.fileCache[cacheKey]) : new Map();
-      const cachedExpanded = state.expandedCache[cacheKey] ? new Set(state.expandedCache[cacheKey]) : new Set();
+      const cachedExpanded: Set<string> = state.expandedCache[cacheKey] ? new Set(state.expandedCache[cacheKey]) : new Set();
 
       return {
         activeKey: cacheKey,

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+      # Enable BuildKit for better caching
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: claude-sessions-e2e:latest
+    volumes:
+      # Mount test results
+      - ./test-results:/app/test-results
+    environment:
+      - DISPLAY=:99
+      - CI=true
+      - DOCKER=true
+    # Allocate enough resources for Tauri build
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G

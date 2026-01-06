@@ -147,6 +147,17 @@ Then select with: `[data-testid="sync-btn"]`
 - `src-tauri/src/server.rs` - HTTP API
 - `scripts/mcp-bridge.cjs` - MCP tool handlers
 
+## ⚠️ DANGER: Kill Commands
+
+**NEVER run `pkill claude-sessions` or similar kill commands targeting "claude-sessions".**
+
+This will kill your own Claude Code process since it runs within the claude-sessions app. Instead:
+- Use `lsof -i :PORT` to find specific PIDs
+- Kill by PID: `kill <specific-pid>`
+- Or ask the user to restart the app manually
+
+---
+
 ## Screenshot Fix (Required)
 ```applescript
 tell application "System Events"
@@ -161,3 +172,68 @@ end tell
 `~/Library/Application Support/com.samb.claude-sessions/sessions.db`
 
 Tables: `sessions`, `workspaces`, `inbox_messages`, `diff_comments`
+
+---
+
+## Automated Tests - RUN AFTER EVERY FEATURE/FIX
+
+**MANDATORY: Run tests at the end of every feature or bug fix. Do not skip this step.**
+
+### Test Commands
+| Command | Description | Tests |
+|---------|-------------|-------|
+| `npm run test:run` | Unit tests (stores, components) | ~56 |
+| `npm run test:e2e` | Core E2E via MCP Bridge | 9 |
+| `npx vitest run --config e2e/vitest.config.ts e2e/specs/*.spec.ts` | Full E2E spec suite | 182 |
+| `docker compose -f docker-compose.e2e.yml up` | Docker WebDriver tests | 15 |
+
+### When to Run Tests
+- **After completing any code changes** - Before committing
+- **After refactoring** - Even "safe" refactors can break things
+- **Before marking a feature as done** - All 206 tests must pass
+- **When debugging** - Run tests to verify fixes don't break other things
+
+### Test Structure
+```
+e2e/
+├── helpers/
+│   ├── bridge-client.ts      # WebSocket client for MCP Bridge
+│   ├── database.ts           # SQLite test helpers
+│   └── test-utils.ts         # waitForElement, sleep, etc.
+├── specs/                    # 182 comprehensive E2E tests
+│   ├── sidebar.spec.ts
+│   ├── session.spec.ts
+│   ├── headless-chat.spec.ts
+│   ├── permission-dialog.spec.ts
+│   ├── diff-viewer.spec.ts
+│   ├── comments.spec.ts
+│   ├── inbox.spec.ts
+│   ├── settings.spec.ts
+│   ├── workspace.spec.ts
+│   └── session-recovery.spec.ts
+├── tauri-e2e.test.ts         # Core MCP Bridge tests (9 tests)
+├── docker-e2e.test.ts        # Docker WebDriver tests (15 tests)
+└── vitest.config.ts
+```
+
+### Quick Verification (Before Every Commit)
+```bash
+# Unit tests
+npm run test:run
+
+# E2E tests (requires app running on port 9223)
+npm run test:e2e
+npx vitest run --config e2e/vitest.config.ts e2e/specs/*.spec.ts
+
+# Docker tests (for CI/cross-platform verification)
+docker compose -f docker-compose.e2e.yml up
+```
+
+### Test Totals
+- Unit tests: ~56
+- E2E specs: 182
+- Core E2E: 9
+- Docker: 15
+- **Total: 206+ tests**
+
+**If any test fails, fix it before proceeding. Do not ignore failing tests.**

@@ -1,0 +1,123 @@
+{
+  "id": "US-039",
+  "title": "Offline-First Architecture with Optional Convex Sync",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "App works fully offline without login (SQLite as source of truth)", "done": true},
+    {"item": "Install and configure @convex-dev/auth with OAuth providers", "done": true},
+    {"item": "Create auth config for Google and GitHub providers", "done": true},
+    {"item": "Update Convex schema with auth tables and sync metadata", "done": true},
+    {"item": "Create auth UI in settings panel (sign in/out, user profile)", "done": true},
+    {"item": "Update main.tsx with ConvexAuthProvider", "done": true},
+    {"item": "Add sync columns to SQLite tables (convex_id, sync_status, updated_at, deleted_at)", "done": true},
+    {"item": "Create sync_queue table in SQLite for offline mutations", "done": true},
+    {"item": "Add Tauri commands for sync queue operations", "done": true},
+    {"item": "Create SyncService class with queue management", "done": true},
+    {"item": "Create SyncContext for React component access", "done": true},
+    {"item": "Create Convex sync functions (pushChanges, getChangesSince, getFullState)", "done": true},
+    {"item": "Implement push/pull sync for sessions", "done": true},
+    {"item": "Implement push/pull sync for workspaces", "done": true},
+    {"item": "Implement push/pull sync for messages (append-only)", "done": false},
+    {"item": "Implement push/pull sync for inbox messages", "done": false},
+    {"item": "Implement push/pull sync for diff comments", "done": false},
+    {"item": "Implement account linking (localStorage ID to OAuth user)", "done": true},
+    {"item": "Implement first-time sync merge logic (last-modified-wins)", "done": true},
+    {"item": "Create SyncStatus UI component", "done": true},
+    {"item": "Handle network state changes (online/offline detection)", "done": true}
+  ],
+  "e2eTests": [
+    {
+      "name": "Offline mode works without login",
+      "steps": [
+        "Launch app without network",
+        "Create new session",
+        "Verify session persists to SQLite",
+        "Verify no errors about Convex connection"
+      ],
+      "done": false
+    },
+    {
+      "name": "OAuth sign-in flow",
+      "steps": [
+        "Open settings panel",
+        "Click 'Sign in with GitHub'",
+        "Complete OAuth flow",
+        "Verify user profile appears in settings"
+      ],
+      "done": false
+    },
+    {
+      "name": "Initial sync after sign-in",
+      "steps": [
+        "Create sessions while offline",
+        "Sign in with OAuth",
+        "Verify local sessions sync to Convex",
+        "Query Convex directly to confirm data"
+      ],
+      "done": false
+    },
+    {
+      "name": "Offline queue processing",
+      "steps": [
+        "Sign in, then go offline",
+        "Create new session",
+        "Verify session added to sync_queue",
+        "Go online",
+        "Verify queue processed and session synced"
+      ],
+      "done": false
+    },
+    {
+      "name": "Conflict resolution",
+      "steps": [
+        "Create session on device A",
+        "Sync to cloud",
+        "Modify session on device B (simulated)",
+        "Modify same session on device A",
+        "Sync and verify last-modified-wins"
+      ],
+      "done": false
+    },
+    {
+      "name": "Sync status indicator",
+      "steps": [
+        "Verify 'synced' status when online and up-to-date",
+        "Go offline, make changes",
+        "Verify 'X pending changes' status",
+        "Go online",
+        "Verify 'syncing' then 'synced' status"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "App launches and works without any network connection", "done": true},
+    {"item": "Users can sign in with Google or GitHub", "done": false},
+    {"item": "All local data syncs to Convex after sign-in", "done": false},
+    {"item": "Changes made offline queue and sync when back online", "done": false},
+    {"item": "Sync status is visible to user at all times", "done": true},
+    {"item": "No data loss during sync operations", "done": false},
+    {"item": "Soft deletes propagate correctly between local and cloud", "done": false}
+  ],
+  "files": [
+    "convex/auth.config.ts",
+    "convex/auth.ts",
+    "convex/http.ts",
+    "convex/schema.ts",
+    "convex/sync.ts",
+    "convex/users.ts",
+    "convex/sessions.ts",
+    "src-tauri/src/db.rs",
+    "src-tauri/src/lib.rs",
+    "src/main.tsx",
+    "src/hooks/useAuth.tsx",
+    "src/hooks/useConvexUser.tsx",
+    "src/services/SyncService.ts",
+    "src/services/SyncContext.tsx",
+    "src/components/SyncStatus.tsx",
+    "src/components/SyncStatus.css",
+    "src/components/SettingsModal.tsx",
+    "src/components/SettingsModal.css"
+  ]
+}

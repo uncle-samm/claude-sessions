@@ -1,0 +1,95 @@
+# syntax=docker/dockerfile:1.4
+# E2E Test Environment for Claude Sessions
+# Uses Xvfb for headless GUI testing with WebDriver
+# Optimized with BuildKit cache mounts
+
+FROM rust:1.84-bookworm
+
+# Install system dependencies for Tauri (cached layer)
+RUN apt-get update && apt-get install -y \
+    # Build essentials
+    build-essential \
+    pkg-config \
+    # Tauri dependencies
+    libwebkit2gtk-4.1-dev \
+    libgtk-3-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    # Virtual display
+    xvfb \
+    x11-utils \
+    # WebDriver - WebKitWebDriver for tauri-driver
+    webkit2gtk-driver \
+    # Node.js
+    curl \
+    # SQLite
+    libsqlite3-dev \
+    sqlite3 \
+    # Misc
+    dbus-x11 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 (cached layer)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+# Install tauri-driver (cached layer)
+RUN cargo install tauri-driver
+
+WORKDIR /app
+
+# Copy package files and install Node deps (cached with mount)
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy Cargo files and tauri config
+COPY src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json ./src-tauri/
+
+# Copy Rust source
+COPY src-tauri/src ./src-tauri/src
+COPY src-tauri/build.rs ./src-tauri/
+COPY src-tauri/capabilities ./src-tauri/capabilities
+COPY src-tauri/icons ./src-tauri/icons
+
+# Build agent-service sidecar for Linux
+COPY scripts/agent-service ./scripts/agent-service
+RUN cd scripts/agent-service && npm ci && npm run build && \
+    npx pkg dist/index.cjs --target node18-linux-arm64 --output ../../src-tauri/binaries/agent-service-aarch64-unknown-linux-gnu
+
+# Copy frontend source
+COPY index.html vite.config.ts tsconfig*.json ./
+COPY src ./src
+COPY convex ./convex
+
+# Copy test files
+COPY e2e ./e2e
+COPY vitest.config.ts ./
+
+# Build Tauri app using npx (this builds frontend AND embeds it into the binary)
+# Cache both cargo registry AND target directory for faster rebuilds
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/src-tauri/target \
+    npx @tauri-apps/cli build --no-bundle && \
+    cp src-tauri/target/release/claude-sessions /tmp/claude-sessions
+
+# Copy binary from temp location (cache mount isn't available after RUN)
+RUN mkdir -p src-tauri/target/release && \
+    cp /tmp/claude-sessions src-tauri/target/release/
+
+# Verify binary was built
+RUN ls -la src-tauri/target/release/claude-sessions
+
+# Set up virtual display
+ENV DISPLAY=:99
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+Xvfb :99 -screen 0 1280x1024x24 &\n\
+sleep 2\n\
+exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default command runs E2E tests
+CMD ["npm", "run", "test:e2e:docker"]

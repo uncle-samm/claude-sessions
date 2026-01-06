@@ -65,6 +65,7 @@ export const create = mutation({
     cwd: v.string(),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
     const sessionId = await ctx.db.insert("sessions", {
       userId: args.userId,
       workspaceId: args.workspaceId,
@@ -73,7 +74,8 @@ export const create = mutation({
       cwd: args.cwd,
       phase: { type: "idle" },
       isClaudeBusy: false,
-      lastActivityAt: Date.now(),
+      lastActivityAt: now,
+      updatedAt: now,
     });
     return sessionId;
   },
@@ -99,6 +101,7 @@ export const getOrCreateForLocal = mutation({
     }
 
     // Create new session
+    const now = Date.now();
     return await ctx.db.insert("sessions", {
       userId: args.userId,
       localSessionId: args.localSessionId,
@@ -106,7 +109,8 @@ export const getOrCreateForLocal = mutation({
       cwd: args.cwd,
       phase: { type: "idle" },
       isClaudeBusy: false,
-      lastActivityAt: Date.now(),
+      lastActivityAt: now,
+      updatedAt: now,
     });
   },
 });

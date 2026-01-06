@@ -5,12 +5,13 @@ import { useSettingsStore } from "../store/settings";
 import { useInboxStore } from "../store/inbox";
 import { AddWorkspaceModal } from "./AddWorkspaceModal";
 import { InboxView } from "./InboxView";
+import { SettingsModal } from "./SettingsModal";
 
 export function Sidebar() {
   const { sessions, activeSessionId, addWorkspaceSession, removeSession, setActiveSession, renameSession, activateSession } =
     useSessionStore();
   const { workspaces, expandedWorkspaces, loadWorkspaces, toggleExpanded } = useWorkspaceStore();
-  const { debugPauseAfterSetup, toggleDebugPauseAfterSetup } = useSettingsStore();
+  const { debugPauseAfterSetup } = useSettingsStore();
   const { messages, startPolling, stopPolling, getUnreadCountForSession, markSessionRead } = useInboxStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -18,6 +19,7 @@ export function Sidebar() {
   const [newSessionWorkspaceId, setNewSessionWorkspaceId] = useState<string | null>(null);
   const [newSessionName, setNewSessionName] = useState("");
   const [showInboxView, setShowInboxView] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const newSessionInputRef = useRef<HTMLInputElement>(null);
 
@@ -272,7 +274,7 @@ export function Sidebar() {
 
       {/* Bottom Navigation */}
       <div className="sidebar-bottom-nav">
-        <div className="nav-item" onClick={toggleDebugPauseAfterSetup}>
+        <div className="nav-item" onClick={() => setShowSettings(true)} data-testid="settings-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -281,6 +283,8 @@ export function Sidebar() {
           {debugPauseAfterSetup && <span className="setting-indicator">•</span>}
         </div>
       </div>
+
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       <AddWorkspaceModal
         isOpen={showAddWorkspace}

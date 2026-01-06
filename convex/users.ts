@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
-// Get user by token identifier (from auth provider)
-export const getByToken = query({
-  args: { tokenIdentifier: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tokenIdentifier))
-      .first();
+// Get the current authenticated user
+export const current = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    return await ctx.db.get(userId);
   },
 });
 
@@ -20,72 +20,128 @@ export const get = query({
   },
 });
 
-// Create or update user (upsert on login)
-export const upsert = mutation({
-  args: {
-    tokenIdentifier: v.string(),
-    name: v.string(),
-    email: v.string(),
-    imageUrl: v.optional(v.string()),
-  },
+// Get user profile (extended data beyond auth)
+export const getProfile = query({
+  args: { userId: v.id("users") },
   handler: async (ctx, args) => {
+    return await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+  },
+});
+
+// Get or create user profile for current user
+export const getOrCreateProfile = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
     const existing = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tokenIdentifier))
+      .query("userProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
 
     if (existing) {
-      // Update existing user
-      await ctx.db.patch(existing._id, {
-        name: args.name,
-        email: args.email,
-        imageUrl: args.imageUrl,
-      });
-      return existing._id;
+      return existing;
     }
 
-    // Create new user
-    return await ctx.db.insert("users", {
-      tokenIdentifier: args.tokenIdentifier,
-      name: args.name,
-      email: args.email,
-      imageUrl: args.imageUrl,
+    // Create new profile
+    const profileId = await ctx.db.insert("userProfiles", {
+      userId,
+      linkedLocalIds: [],
     });
+
+    return await ctx.db.get(profileId);
   },
 });
 
-// For development/testing: create anonymous user
-export const createAnonymous = mutation({
+// Link a local ID to the current user (for migration from anonymous)
+export const linkLocalId = mutation({
+  args: { localId: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (profile) {
+      const linkedLocalIds = profile.linkedLocalIds || [];
+      if (!linkedLocalIds.includes(args.localId)) {
+        await ctx.db.patch(profile._id, {
+          linkedLocalIds: [...linkedLocalIds, args.localId],
+        });
+      }
+    } else {
+      await ctx.db.insert("userProfiles", {
+        userId,
+        linkedLocalIds: [args.localId],
+      });
+    }
+  },
+});
+
+// Update last sync timestamp
+export const updateLastSync = mutation({
   args: {},
   handler: async (ctx) => {
-    const anonId = `anon_${Date.now()}`;
-    return await ctx.db.insert("users", {
-      tokenIdentifier: anonId,
-      name: "Anonymous User",
-      email: `${anonId}@local`,
-    });
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (profile) {
+      await ctx.db.patch(profile._id, {
+        lastSyncAt: Date.now(),
+      });
+    }
   },
 });
 
-// Get or create anonymous user for local development
+// Get user by linked local ID (for finding if anonymous data was already linked)
+export const getByLinkedLocalId = query({
+  args: { localId: v.string() },
+  handler: async (ctx, args) => {
+    // Note: This is a scan since we can't index into arrays directly
+    // For production, consider a separate linking table
+    const profiles = await ctx.db.query("userProfiles").collect();
+    const profile = profiles.find((p) =>
+      p.linkedLocalIds?.includes(args.localId)
+    );
+    if (!profile) return null;
+    return await ctx.db.get(profile.userId);
+  },
+});
+
+// For development/testing: create anonymous user (kept for backwards compatibility)
 export const getOrCreateAnonymous = mutation({
   args: { localId: v.string() },
   handler: async (ctx, args) => {
-    const tokenId = `local_${args.localId}`;
+    // Check if there's already a user linked to this local ID
+    const profiles = await ctx.db.query("userProfiles").collect();
+    const existingProfile = profiles.find((p) =>
+      p.linkedLocalIds?.includes(args.localId)
+    );
 
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenId))
-      .first();
-
-    if (existing) {
-      return existing._id;
+    if (existingProfile) {
+      return existingProfile.userId;
     }
 
-    return await ctx.db.insert("users", {
-      tokenIdentifier: tokenId,
-      name: "Local User",
-      email: `${args.localId}@local`,
-    });
+    // For anonymous mode, we don't create a real user
+    // Return null to indicate anonymous mode
+    return null;
   },
 });

@@ -8,6 +8,7 @@ mod server;
 use chrono::Utc;
 use permissions::{PermissionBehavior, PermissionResponse};
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 
 // Types for IPC
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,6 +107,9 @@ fn create_workspace(
         script_path: script_path.clone(),
         origin_branch: origin_branch.clone(),
         created_at: Utc::now(),
+        convex_id: None,
+        sync_status: "pending".to_string(),
+        deleted_at: None,
     };
     db::create_workspace(&workspace).map_err(|e| e.to_string())?;
     Ok(WorkspaceData {
@@ -161,6 +165,9 @@ fn create_session(
         base_commit: base_commit.clone(),
         created_at: Utc::now(),
         updated_at: Utc::now(),
+        convex_id: None,
+        sync_status: "pending".to_string(),
+        deleted_at: None,
     };
     db::create_session(&session).map_err(|e| e.to_string())?;
     Ok(SessionData {
@@ -372,6 +379,156 @@ fn delete_comment(id: String) -> Result<(), String> {
     db::delete_comment(&id).map_err(|e| e.to_string())
 }
 
+// ========== SYNC QUEUE COMMANDS ==========
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncQueueItemData {
+    pub id: String,
+    pub entity_type: String,
+    pub entity_id: String,
+    pub operation: String,
+    pub payload: String,
+    pub created_at: String,
+    pub attempts: i32,
+    pub last_error: Option<String>,
+}
+
+fn sync_queue_item_to_data(item: db::SyncQueueItem) -> SyncQueueItemData {
+    SyncQueueItemData {
+        id: item.id,
+        entity_type: item.entity_type,
+        entity_id: item.entity_id,
+        operation: item.operation,
+        payload: item.payload,
+        created_at: item.created_at.to_rfc3339(),
+        attempts: item.attempts,
+        last_error: item.last_error,
+    }
+}
+
+#[tauri::command]
+fn add_to_sync_queue(
+    entity_type: String,
+    entity_id: String,
+    operation: String,
+    payload: String,
+) -> Result<SyncQueueItemData, String> {
+    db::add_to_sync_queue(&entity_type, &entity_id, &operation, &payload)
+        .map(sync_queue_item_to_data)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_sync_queue() -> Result<Vec<SyncQueueItemData>, String> {
+    db::get_sync_queue()
+        .map(|items| items.into_iter().map(sync_queue_item_to_data).collect())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_from_sync_queue(id: String) -> Result<(), String> {
+    db::remove_from_sync_queue(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn increment_sync_attempts(id: String, error: String) -> Result<(), String> {
+    db::increment_sync_attempts(&id, &error).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_unsynced_sessions() -> Result<Vec<SessionData>, String> {
+    db::get_unsynced_sessions()
+        .map(|sessions| {
+            sessions
+                .into_iter()
+                .map(|s| SessionData {
+                    id: s.id,
+                    name: s.name,
+                    cwd: s.cwd,
+                    workspace_id: s.workspace_id,
+                    worktree_name: s.worktree_name,
+                    status: s.status,
+                    base_commit: s.base_commit,
+                })
+                .collect()
+        })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_session_convex_id(id: String, convex_id: String) -> Result<(), String> {
+    db::update_session_convex_id(&id, &convex_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_session_sync_status(id: String, sync_status: String) -> Result<(), String> {
+    db::update_session_sync_status(&id, &sync_status).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_unsynced_workspaces() -> Result<Vec<WorkspaceData>, String> {
+    db::get_unsynced_workspaces()
+        .map(|workspaces| {
+            workspaces
+                .into_iter()
+                .map(|w| WorkspaceData {
+                    id: w.id,
+                    name: w.name,
+                    folder: w.folder,
+                    script_path: w.script_path,
+                    origin_branch: w.origin_branch,
+                })
+                .collect()
+        })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_workspace_convex_id(id: String, convex_id: String) -> Result<(), String> {
+    db::update_workspace_convex_id(&id, &convex_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_workspace_sync_status(id: String, sync_status: String) -> Result<(), String> {
+    db::update_workspace_sync_status(&id, &sync_status).map_err(|e| e.to_string())
+}
+
+// OAuth state - stores the callback URL when received
+use std::sync::Mutex;
+static OAUTH_CALLBACK_URL: Mutex<Option<String>> = Mutex::new(None);
+
+// OAuth commands
+#[tauri::command]
+async fn start_oauth_flow() -> Result<u16, String> {
+    // Clear any previous callback URL
+    if let Ok(mut url) = OAUTH_CALLBACK_URL.lock() {
+        *url = None;
+    }
+
+    // Start a local server to capture OAuth callback
+    // Use default config - the plugin injects JavaScript that fetches the full URL back
+    // We cannot override the response as it breaks the callback mechanism
+    tauri_plugin_oauth::start(move |url| {
+        println!("[OAuth] Received callback URL: {}", url);
+        // Store the URL for polling
+        if let Ok(mut stored_url) = OAUTH_CALLBACK_URL.lock() {
+            *stored_url = Some(url);
+            println!("[OAuth] Stored callback URL for polling");
+        }
+    })
+    .map_err(|e| e.to_string())
+}
+
+// Poll for OAuth callback URL
+#[tauri::command]
+fn poll_oauth_callback() -> Option<String> {
+    if let Ok(mut url) = OAUTH_CALLBACK_URL.lock() {
+        url.take() // Return and clear the URL
+    } else {
+        None
+    }
+}
+
 // Permission commands
 #[tauri::command]
 fn respond_to_permission(
@@ -422,6 +579,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
             get_workspaces,
             create_workspace,
@@ -454,8 +612,22 @@ pub fn run() {
             reply_to_comment,
             resolve_comment,
             delete_comment,
+            // Sync queue commands
+            add_to_sync_queue,
+            get_sync_queue,
+            remove_from_sync_queue,
+            increment_sync_attempts,
+            get_unsynced_sessions,
+            update_session_convex_id,
+            update_session_sync_status,
+            get_unsynced_workspaces,
+            update_workspace_convex_id,
+            update_workspace_sync_status,
             // Permission commands
             respond_to_permission,
+            // OAuth commands
+            start_oauth_flow,
+            poll_oauth_callback,
             // Headless Claude commands (legacy CLI)
             claude_headless::start_claude_headless,
             claude_headless::send_claude_input,
@@ -474,11 +646,47 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 server::start_server_with_app(app_handle).await;
             });
+
+            // Set up deep link handler for OAuth callbacks
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+
+                // Register the deep link scheme (needed for dev mode)
+                if let Err(e) = app.deep_link().register_all() {
+                    eprintln!("[DeepLink] Failed to register: {}", e);
+                }
+
+                // Handle deep links opened while app is running
+                let app_handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    let urls = event.urls();
+                    for url in urls {
+                        println!("[DeepLink] Received: {}", url);
+                        // Emit event to frontend for OAuth callback handling
+                        if let Err(e) = app_handle.emit("deep-link", url.to_string()) {
+                            eprintln!("[DeepLink] Failed to emit event: {}", e);
+                        }
+                    }
+                });
+
+                // Check if app was started via deep link
+                if let Ok(Some(urls)) = app.deep_link().get_current() {
+                    let app_handle = app.handle().clone();
+                    for url in urls {
+                        println!("[DeepLink] Started with: {}", url);
+                        if let Err(e) = app_handle.emit("deep-link", url.to_string()) {
+                            eprintln!("[DeepLink] Failed to emit startup event: {}", e);
+                        }
+                    }
+                }
+            }
+
             Ok(())
         });
 
-    // Enable MCP bridge for AI debugging in development
-    #[cfg(debug_assertions)]
+    // Enable MCP bridge for AI debugging (only when feature is enabled)
+    #[cfg(feature = "mcp-bridge")]
     {
         builder = builder.plugin(tauri_plugin_mcp_bridge::init());
     }

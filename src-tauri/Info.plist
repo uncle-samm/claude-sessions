@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Claude Sessions needs Bluetooth access to support passkey authentication with your phone or security key.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>Claude Sessions needs Bluetooth access to support passkey authentication with your phone or security key.</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.samb.claude-sessions</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>claude-sessions</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

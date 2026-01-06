@@ -1,21 +1,38 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
-  // Users table - for authentication
-  users: defineTable({
-    name: v.string(),
-    email: v.string(),
-    imageUrl: v.optional(v.string()),
-    tokenIdentifier: v.string(), // From auth provider (Clerk/Convex Auth)
-  }).index("by_token", ["tokenIdentifier"]),
+  // Auth tables from @convex-dev/auth (users, sessions, accounts, etc.)
+  ...authTables,
+
+  // Extended user profile - linked to auth user
+  userProfiles: defineTable({
+    userId: v.id("users"), // References auth user
+    linkedLocalIds: v.optional(v.array(v.string())), // For migration from anonymous
+    lastSyncAt: v.optional(v.number()), // Last full sync timestamp
+    preferences: v.optional(
+      v.object({
+        theme: v.optional(v.string()),
+        defaultPermissionMode: v.optional(v.string()),
+      })
+    ),
+  })
+    .index("by_user", ["userId"])
+    .index("by_linked_local", ["linkedLocalIds"]),
 
   // Workspaces - project folders
   workspaces: defineTable({
     userId: v.id("users"),
+    localId: v.optional(v.string()), // Maps to local SQLite workspace ID
     name: v.string(),
     path: v.string(), // Local filesystem path
-  }).index("by_user", ["userId"]),
+    originBranch: v.optional(v.string()),
+    updatedAt: v.number(), // For sync conflict resolution
+    deletedAt: v.optional(v.number()), // Soft delete
+  })
+    .index("by_user", ["userId"])
+    .index("by_local_id", ["localId"]),
 
   // Sessions - Claude coding sessions
   sessions: defineTable({
@@ -33,6 +50,8 @@ export default defineSchema({
     }),
     isClaudeBusy: v.boolean(),
     lastActivityAt: v.number(),
+    updatedAt: v.optional(v.number()), // For sync conflict resolution (optional for migration)
+    deletedAt: v.optional(v.number()), // Soft delete
   })
     .index("by_user", ["userId"])
     .index("by_workspace", ["workspaceId"])
@@ -54,6 +73,7 @@ export default defineSchema({
     model: v.optional(v.string()),
     inputTokens: v.optional(v.number()),
     outputTokens: v.optional(v.number()),
+    createdAt: v.optional(v.number()), // Timestamp for ordering
   })
     .index("by_session", ["sessionId"])
     .index("by_external_id", ["externalId"]),
@@ -75,18 +95,28 @@ export default defineSchema({
   inboxMessages: defineTable({
     userId: v.id("users"),
     sessionId: v.id("sessions"),
+    localId: v.optional(v.string()), // Maps to local SQLite inbox message ID
     message: v.string(),
     isRead: v.boolean(),
+    readAt: v.optional(v.number()),
+    firstReadAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(), // For sync conflict resolution
+    deletedAt: v.optional(v.number()), // Soft delete
   })
     .index("by_user", ["userId"])
-    .index("by_session", ["sessionId"]),
+    .index("by_session", ["sessionId"])
+    .index("by_local_id", ["localId"]),
 
   // Diff comments - code review feedback
   diffComments: defineTable({
     sessionId: v.id("sessions"),
+    localId: v.optional(v.string()), // Maps to local SQLite comment ID
     filePath: v.string(),
     lineNumber: v.number(),
+    lineType: v.optional(v.string()), // "added" | "removed" | "context"
     side: v.union(v.literal("left"), v.literal("right")),
+    author: v.optional(v.string()),
     content: v.string(),
     status: v.union(
       v.literal("open"),
@@ -94,5 +124,11 @@ export default defineSchema({
       v.literal("wont_fix")
     ),
     resolvedNote: v.optional(v.string()),
-  }).index("by_session", ["sessionId"]),
+    parentId: v.optional(v.id("diffComments")), // For threaded replies
+    createdAt: v.number(),
+    updatedAt: v.number(), // For sync conflict resolution
+    deletedAt: v.optional(v.number()), // Soft delete
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_local_id", ["localId"]),
 });

@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
+import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as sessions from "../sessions.js";
+import type * as sync from "../sync.js";
 import type * as todos from "../todos.js";
 import type * as users from "../users.js";
 
@@ -20,8 +23,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
+  http: typeof http;
   messages: typeof messages;
   sessions: typeof sessions;
+  sync: typeof sync;
   todos: typeof todos;
   users: typeof users;
 }>;

@@ -1,0 +1,53 @@
+{
+  "id": "US-038",
+  "title": "Comprehensive E2E Test Coverage",
+  "type": "feature",
+  "status": "in_progress",
+  "requirements": [
+    {"item": "Extract reusable BridgeClient helper class", "done": false},
+    {"item": "Create database helper for SQLite test verification", "done": false},
+    {"item": "Create test utilities (waitFor, waitForElement)", "done": false},
+    {"item": "Write sidebar navigation tests (8 tests)", "done": false},
+    {"item": "Write session management tests (10 tests)", "done": false},
+    {"item": "Write HeadlessChat interface tests (8 tests)", "done": false},
+    {"item": "Write permission dialog tests (6 tests)", "done": false},
+    {"item": "Write DiffViewer tests (12 tests)", "done": false},
+    {"item": "Write comments tests (8 tests)", "done": false},
+    {"item": "Write inbox tests (6 tests)", "done": false},
+    {"item": "Write settings tests (5 tests)", "done": false},
+    {"item": "Write workspace setup tests (6 tests)", "done": false},
+    {"item": "Write session recovery tests (5 tests)", "done": false}
+  ],
+  "e2eTests": [
+    {
+      "name": "All E2E tests pass",
+      "steps": [
+        "Run npm run test:e2e",
+        "Verify 70+ tests pass",
+        "No flaky tests"
+      ],
+      "done": false
+    }
+  ],
+  "acceptanceCriteria": [
+    {"item": "Total E2E tests: 70+ (up from 9)", "done": false},
+    {"item": "All critical user flows covered", "done": false},
+    {"item": "Tests run in under 5 minutes", "done": false},
+    {"item": "Tests are reliable (no flaky tests)", "done": false}
+  ],
+  "files": [
+    "e2e/helpers/bridge-client.ts",
+    "e2e/helpers/database.ts",
+    "e2e/helpers/test-utils.ts",
+    "e2e/specs/sidebar.spec.ts",
+    "e2e/specs/session.spec.ts",
+    "e2e/specs/headless-chat.spec.ts",
+    "e2e/specs/permission-dialog.spec.ts",
+    "e2e/specs/diff-viewer.spec.ts",
+    "e2e/specs/comments.spec.ts",
+    "e2e/specs/inbox.spec.ts",
+    "e2e/specs/settings.spec.ts",
+    "e2e/specs/workspace.spec.ts",
+    "e2e/specs/session-recovery.spec.ts"
+  ]
+}

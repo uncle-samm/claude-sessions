@@ -1,6 +1,8 @@
 import ReactDOM from "react-dom/client";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
-import { ConvexUserProvider } from "./hooks/useConvexUser";
+import { ConvexReactClient } from "convex/react";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { AuthProvider } from "./hooks/useAuth";
+import { SyncProvider } from "./services/SyncContext";
 import App from "./App";
 
 // Initialize Convex client
@@ -13,12 +15,16 @@ const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   convex ? (
-    <ConvexProvider client={convex}>
-      <ConvexUserProvider>
-        <App />
-      </ConvexUserProvider>
-    </ConvexProvider>
+    <ConvexAuthProvider client={convex}>
+      <AuthProvider>
+        <SyncProvider>
+          <App />
+        </SyncProvider>
+      </AuthProvider>
+    </ConvexAuthProvider>
   ) : (
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   )
 );

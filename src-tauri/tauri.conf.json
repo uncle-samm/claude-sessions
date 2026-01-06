@@ -3,6 +3,13 @@
   "productName": "Claude Sessions",
   "version": "0.1.0",
   "identifier": "com.samb.claude-sessions",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["claude-sessions"]
+      }
+    }
+  },
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -32,6 +39,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/agent-service"]
+    "externalBin": ["binaries/agent-service"],
+    "macOS": {
+      "entitlements": "Entitlements.plist",
+      "infoPlist": "Info.plist"
+    }
   }
 }

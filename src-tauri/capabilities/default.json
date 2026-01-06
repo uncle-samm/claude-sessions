@@ -2,9 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": ["main", "oauth-window"],
   "permissions": [
     "core:default",
+    "core:webview:allow-create-webview-window",
     "pty:default",
     "dialog:default",
     "store:default",
@@ -13,6 +14,8 @@
     "fs:allow-exists",
     "fs:allow-watch",
     "fs:scope-home-recursive",
+    "shell:allow-open",
+    "deep-link:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [

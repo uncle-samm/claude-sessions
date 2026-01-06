@@ -1,0 +1,45 @@
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
+.sync-status__icon {
+  font-size: 12px;
+}
+
+.sync-status--syncing {
+  color: var(--accent-color);
+}
+
+.sync-status--syncing .sync-status__icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sync-status--error {
+  color: var(--error-color);
+  background: rgba(255, 100, 100, 0.1);
+}
+
+.sync-status--offline {
+  color: var(--warning-color);
+  background: rgba(255, 180, 100, 0.1);
+}
+
+.sync-status--idle {
+  color: var(--success-color);
+}

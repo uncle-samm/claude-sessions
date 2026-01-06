@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { watch, type UnwatchFn } from "@tauri-apps/plugin-fs";
 import { useDiffStore } from "../store/diffs";
 import { useSessionStore } from "../store/sessions";
